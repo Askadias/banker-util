@@ -1,4 +1,4 @@
-module github.com/Askadias/banker-crypto-gateway
+module github.com/Askadias/banker-util
 
 require (
 	github.com/MinterTeam/minter-go-sdk v1.0.8
