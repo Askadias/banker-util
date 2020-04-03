@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/Askadias/banker-crypto-gateway/gateway"
+	"github.com/Askadias/banker-util/gateway"
 	"github.com/MinterTeam/minter-go-sdk/api"
 	"github.com/go-resty/resty/v2"
 )
