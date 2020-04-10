@@ -2,13 +2,19 @@ package gateway
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/MinterTeam/minter-go-sdk/api"
 	"github.com/MinterTeam/minter-go-sdk/transaction"
 	"github.com/MinterTeam/minter-go-sdk/wallet"
 	"math"
 	"math/big"
-	"strconv"
+	"strings"
+	"time"
+)
+
+const (
+	BIPDecimal = 18.0
 )
 
 type MinterAdapter struct {
@@ -55,7 +61,7 @@ func (ma *MinterAdapter) GetBalance(ctx context.Context, address string) (map[st
 		if err != nil {
 			return balance, fmt.Errorf("unable to parse %s balance: %v", coin, err)
 		}
-		quotient := big.NewFloat(0).SetInt(big.NewInt(0).Exp(big.NewInt(10), big.NewInt(18), nil))
+		quotient := big.NewFloat(0).SetInt(big.NewInt(0).Exp(big.NewInt(10), big.NewInt(BIPDecimal), nil))
 		balanceAmount, _ := new(big.Float).Quo(balanceVal, quotient).Float64()
 		balance[coin] = balanceAmount
 	}
@@ -98,44 +104,37 @@ func (ma *MinterAdapter) SellAll(ctx context.Context, w Wallet, coin string) (st
 	return res.Hash, nil
 }
 
-func (ma *MinterAdapter) prepareSendTx(w Wallet, coin string, amount float64, address string) (transaction.SignedTransaction, error) {
-	value := big.NewFloat(0).Copy(big.NewFloat(amount))
-	multiplier := big.NewFloat(math.Pow10(18))
-	value.Mul(value, multiplier)
-	// value = amount * 10^18
-	// amount = 0.0000000123
-	// value = 1230000000000
-	val, _ := value.Int(big.NewInt(0))
+func (ma *MinterAdapter) prepareSendTx(w Wallet, coin string, amount float64, address string) (transaction.SignedTransaction, uint64, error) {
 	data, _ := transaction.NewSendData().
 		SetCoin(coin).
-		SetValue(val).
+		SetValue(bipToCoin(amount)).
 		SetTo(address)
 
 	newTransaction, err := transaction.NewBuilder(transaction.MainNetChainID).NewTransaction(data)
 	if err != nil {
-		return nil, fmt.Errorf("unable to prepare transaction: %v", err)
+		return nil, 0, fmt.Errorf("unable to prepare transaction: %v", err)
 	}
 	mntWallet, err := ma.getWallet(w.PrivateKey)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	nonce, err := ma.Client.Nonce(mntWallet.Address())
 	if err != nil {
-		return nil, fmt.Errorf("unable to generate nonce: %v", err)
+		return nil, 0, fmt.Errorf("unable to generate nonce: %v", err)
 	}
 
 	signedTransaction, err := newTransaction.
 		SetNonce(nonce).
-		SetGasCoin(coin).
+		SetGasCoin("BIP").
 		SetGasPrice(1).
 		SetSignatureType(transaction.SignatureTypeSingle).
 		Sign(mntWallet.PrivateKey())
-	return signedTransaction, nil
+	return signedTransaction, nonce, nil
 }
 
 func (ma *MinterAdapter) EstimateSendFee(ctx context.Context, w Wallet, coin string, amount float64, address string) (float64, error) {
-	signedTransaction, err := ma.prepareSendTx(w, coin, amount, address)
+	signedTransaction, _, err := ma.prepareSendTx(w, coin, amount, address)
 	if err != nil {
 		return 0, fmt.Errorf("unable to create transaction to send coin %s to %s: %v", coin, address, err)
 	}
@@ -143,76 +142,103 @@ func (ma *MinterAdapter) EstimateSendFee(ctx context.Context, w Wallet, coin str
 	if err != nil {
 		return 0, fmt.Errorf("unable to estimate send transatcion of %s to %s: %v", coin, address, err)
 	}
-	fee, err := strconv.ParseFloat(res.Commission, 64)
-	if err != nil {
-		return 0, fmt.Errorf("unable to parse fee %s: %v", res.Commission, err)
-	}
+	fee, _ := pipToBIP(res.Commission).Float64()
 	return fee, nil
 }
 
 func (ma *MinterAdapter) Send(ctx context.Context, w Wallet, coin string, amount float64, address string) (string, error) {
-	signedTransaction, err := ma.prepareSendTx(w, coin, amount, address)
-	if err != nil {
-		return "", fmt.Errorf("unable to create transaction to send coin %s to %s: %v", coin, address, err)
-	}
+	var (
+		signedTransaction transaction.SignedTransaction
+		err               error
+		nonce             = ^uint64(0)
+		prevNonce         = ^uint64(0)
+	)
+	for {
+		signedTransaction, nonce, err = ma.prepareSendTx(w, coin, amount, address)
+		if err != nil {
+			return "", fmt.Errorf("unable to create transaction to send coin %s to %s: %v", coin, address, err)
+		}
+		if prevNonce == nonce {
+			continue
+		}
+		prevNonce = nonce
 
-	res, err := ma.Client.SendTransaction(signedTransaction)
-	if err != nil {
-		return "", fmt.Errorf("unable to send coin %s to %s: %v", coin, address, err)
+		res, err := ma.Client.SendTransaction(signedTransaction)
+		if err != nil {
+			err = tryParseError(err)
+			if isTransactionInMempool(err) {
+				time.Sleep(1 * time.Second)
+				continue
+			}
+			return "", fmt.Errorf("unable to send coin %s to %s: %v", coin, address, err)
+		}
+		return "Mt" + strings.ToLower(res.Hash), nil
 	}
-	return res.Hash, nil
 }
 
-func (ma *MinterAdapter) prepareMultiSendTx(w Wallet, coin string, amounts map[string]float64) (transaction.SignedTransaction, error) {
+func (ma *MinterAdapter) prepareMultiSendTx(w Wallet, coin string, addresses []string, amounts []float64) (transaction.SignedTransaction, uint64, error) {
 	data := transaction.NewMultisendData()
-	for address, amount := range amounts {
-		value := big.NewFloat(0).Copy(big.NewFloat(amount))
-		multiplier := big.NewFloat(math.Pow10(18))
-		value.Mul(value, multiplier)
-		val, _ := value.Int(big.NewInt(0))
-		data.AddItem(*transaction.NewMultisendDataItem().
-			SetCoin(coin).SetValue(val).
-			MustSetTo(address))
+	for i := 0; i < len(addresses); i++ {
+		data = data.AddItem(*transaction.NewMultisendDataItem().
+			SetCoin(coin).SetValue(bipToCoin(amounts[i])).
+			MustSetTo(addresses[i]))
 	}
 
 	newTransaction, err := transaction.NewBuilder(transaction.MainNetChainID).NewTransaction(data)
 	if err != nil {
-		return nil, fmt.Errorf("unable to prepare transaction: %v", err)
+		return nil, 0, fmt.Errorf("unable to prepare transaction: %v", err)
 	}
 	mntWallet, err := ma.getWallet(w.PrivateKey)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	nonce, err := ma.Client.Nonce(mntWallet.Address())
 	if err != nil {
-		return nil, fmt.Errorf("unable to generate nonce: %v", err)
+		return nil, 0, fmt.Errorf("unable to generate nonce: %v", err)
 	}
 
 	signedTransaction, err := newTransaction.
 		SetNonce(nonce).
-		SetGasCoin(coin).
+		SetGasCoin("BIP").
 		SetGasPrice(1).
 		SetSignatureType(transaction.SignatureTypeSingle).
 		Sign(mntWallet.PrivateKey())
-	return signedTransaction, nil
+	return signedTransaction, nonce, nil
 }
 
-func (ma *MinterAdapter) MultiSend(ctx context.Context, w Wallet, coin string, amounts map[string]float64) (string, error) {
-	signedTransaction, err := ma.prepareMultiSendTx(w, coin, amounts)
-	if err != nil {
-		return "", fmt.Errorf("unable to create transaction to multisend coin %s to %v: %v", coin, amounts, err)
-	}
+func (ma *MinterAdapter) MultiSend(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (string, error) {
+	var (
+		signedTransaction transaction.SignedTransaction
+		err               error
+		nonce             = ^uint64(0)
+		prevNonce         = ^uint64(0)
+	)
+	for {
+		signedTransaction, nonce, err = ma.prepareMultiSendTx(w, coin, addresses, amounts)
+		if err != nil {
+			return "", fmt.Errorf("unable to create transaction to multisend coin %s to %v: %v", coin, amounts, err)
+		}
+		if prevNonce == nonce {
+			continue
+		}
+		prevNonce = nonce
 
-	res, err := ma.Client.SendTransaction(signedTransaction)
-	if err != nil {
-		return "", fmt.Errorf("unable to send coin %s to %v: %v", coin, amounts, err)
+		res, err := ma.Client.SendTransaction(signedTransaction)
+		if err != nil {
+			err = tryParseError(err)
+			if isTransactionInMempool(err) {
+				time.Sleep(1 * time.Second)
+				continue
+			}
+			return "", fmt.Errorf("unable to multisendsend coin %s to %v: %v", coin, addresses, err)
+		}
+		return "Mt" + strings.ToLower(res.Hash), nil
 	}
-	return res.Hash, nil
 }
 
-func (ma *MinterAdapter) EstimateMultiSendFee(ctx context.Context, w Wallet, coin string, amounts map[string]float64) (float64, error) {
-	signedTransaction, err := ma.prepareMultiSendTx(w, coin, amounts)
+func (ma *MinterAdapter) EstimateMultiSendFee(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (float64, error) {
+	signedTransaction, _, err := ma.prepareMultiSendTx(w, coin, addresses, amounts)
 	if err != nil {
 		return 0, fmt.Errorf("unable to create transaction to multisend coin %s to %v: %v", coin, amounts, err)
 	}
@@ -220,9 +246,43 @@ func (ma *MinterAdapter) EstimateMultiSendFee(ctx context.Context, w Wallet, coi
 	if err != nil {
 		return 0, fmt.Errorf("unable to estimate multisend transaction of %s to %v: %v", coin, amounts, err)
 	}
-	fee, err := strconv.ParseFloat(res.Commission, 64)
-	if err != nil {
-		return 0, fmt.Errorf("unable to parse fee %s: %v", res.Commission, err)
-	}
+	fee, _ := pipToBIP(res.Commission).Float64()
 	return fee, nil
+}
+
+func pipToBIP(pip string) *big.Float {
+	weiFloat := new(big.Float)
+	weiFloat.SetString(pip)
+	return new(big.Float).Quo(weiFloat, big.NewFloat(math.Pow10(BIPDecimal)))
+}
+
+func bipToCoin(bip float64) *big.Int {
+	value := big.NewFloat(0).Copy(big.NewFloat(bip))
+	multiplier := big.NewFloat(math.Pow10(BIPDecimal))
+	value.Mul(value, multiplier)
+	// value = amount * 10^18
+	// amount = 0.0000000123
+	// value = 1230000000000
+	val, _ := value.Int(big.NewInt(0))
+	return val
+}
+
+func tryParseError(err error) error {
+	if txErr, ok := err.(*api.ResponseError); ok { //Tx already exists in mempool
+		response := new(api.SendTransactionResponse)
+		err = json.Unmarshal(txErr.Body(), response)
+		if err == nil {
+			return response.Error
+		}
+	}
+	return err
+}
+
+func isTransactionInMempool(err error) bool {
+	if txErr, ok := err.(*api.TxError); ok { //Tx already exists in mempool
+		if txErr.TxResult.Code == 113 {
+			return true
+		}
+	}
+	return false
 }

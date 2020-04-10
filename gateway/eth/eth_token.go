@@ -316,14 +316,6 @@ func (_Token *TokenTransactorSession) ApproveAndCall(_spender common.Address, _v
 	return _Token.Contract.ApproveAndCall(&_Token.TransactOpts, _spender, _value, _extraData)
 }
 
-func (_Token *TokenTransactor) PackTransferData(_to common.Address, _value *big.Int) ([]byte, error) {
-	parsed, err := abi.JSON(strings.NewReader(TokenABI))
-	if err != nil {
-		return nil, err
-	}
-	return parsed.Pack("transfer", _to, _value)
-}
-
 // Transfer is a paid mutator transaction binding the contract method 0xa9059cbb.
 //
 // Solidity: function transfer(_to address, _value uint256) returns()
