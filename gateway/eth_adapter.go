@@ -21,7 +21,7 @@ import (
 const (
 	// TokenABI is the input ABI used to generate the binding from.
 	USDTContractAddress      = "0xdac17f958d2ee523a2206206994597c13d831ec7"
-	MultiSendContractAddress = "0xC7576192981aC2cEE5A5a5701617b417105C41BB"
+	MultiSendContractAddress = "0xF62e93Eb9e92A0Cd9B9311ea01f1c74cbA5650F2"
 	USDTDecimal              = 6
 	GWEIDecimal              = 9
 	ETHDecimal               = 18

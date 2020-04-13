@@ -22,7 +22,7 @@ contract Multisend {
     function bulkSendEth(address payable[] memory recipients, uint256[] memory amounts) public payable {
         require(recipients.length <= 300, "number of recipients is larger than 300");
         require(recipients.length == amounts.length, "parameters not match");
-        uint totalAmount = 0;
+        uint256 totalAmount = 0;
         for (uint8 i = 0; i < recipients.length; i++) {
             totalAmount = totalAmount.add(amounts[i]);
         }
@@ -38,17 +38,17 @@ contract Multisend {
         }
     }
 
-    function bulkSendToken(Token tokenAddr, address payable[] memory recipients, uint256[] memory amounts) public payable {
+    function bulkSendToken(Token tokenAddr, address [] memory recipients, uint256[] memory amounts) public {
         require(recipients.length <= 300, "number of recipients is larger than 300");
         require(recipients.length == amounts.length, "parameters not match");
-        uint totalAmount = 0;
+        uint256 totalAmount = 0;
         for (uint8 i = 0; i < recipients.length; i++) {
             totalAmount = totalAmount.add(amounts[i]);
         }
 
-        address multisendContractAddress = address(this);
+        tokenAddr.approve(address(this), totalAmount);
         // check if user has enough balance
-        require(totalAmount <= tokenAddr.allowance(msg.sender, multisendContractAddress), "not enough token balance");
+        require(totalAmount <= tokenAddr.allowance(msg.sender, address(this)), "not enough token balance");
 
         // transfer token to addresses
         for (uint8 j = 0; j < recipients.length; j++) {
