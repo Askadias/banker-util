@@ -1,16 +1,16 @@
-pragma solidity >=0.5.0 <0.7.0;
+pragma solidity >= 0.4.21 < 0.7.0;
 
-import "token.sol";
-import "math.sol";
+import "openzeppelin-contracts/blob/v2.4.0/contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/blob/v2.4.0/contracts/token/ERC20/SafeERC20.sol";
 
-contract Multisend {
+contract MultiSend {
+
+    using SafeERC20 for IERC20;
     using SafeMath for uint256;
-    address payable public owner;
 
-    event Transfer(address recipient, uint amount);
-    event Refund(uint refund);
+    address public owner;
 
-    constructor() public payable {
+    constructor() public payable{
         owner = msg.sender;
     }
 
@@ -19,45 +19,43 @@ contract Multisend {
         _;
     }
 
-    function bulkSendEth(address payable[] memory recipients, uint256[] memory amounts) public payable {
-        require(recipients.length <= 300, "number of recipients is larger than 300");
-        require(recipients.length == amounts.length, "parameters not match");
-        uint256 totalAmount = 0;
-        for (uint8 i = 0; i < recipients.length; i++) {
-            totalAmount = totalAmount.add(amounts[i]);
+    function bulkSendEth(address payable[] memory addresses, uint256[] memory amounts) public payable returns (bool success){
+        uint total = 0;
+        for (uint8 i = 0; i < amounts.length; i++) {
+            total = total.add(amounts[i]);
         }
-        require(msg.value >= totalAmount, "not enough token");
-        for (uint8 i = 0; i < recipients.length; i++) {
-            recipients[i].transfer(amounts[i]);
-            emit Transfer(recipients[i], amounts[i]);
+
+        require(msg.value >= total);
+
+        //transfer to each address
+        for (uint8 j = 0; j < addresses.length; j++) {
+            addresses[j].transfer(amounts[j]);
         }
-        if (msg.value > totalAmount) {
-            uint refund = msg.value.sub(totalAmount);
-            msg.sender.transfer(refund);
-            emit Refund(refund);
+
+        //return change to the sender
+        if (msg.value > total) {
+            uint change = msg.value.sub(total);
+            msg.sender.transfer(change);
         }
+        return true;
     }
 
-    function bulkSendToken(Token tokenAddr, address [] memory recipients, uint256[] memory amounts) public {
-        require(recipients.length <= 300, "number of recipients is larger than 300");
-        require(recipients.length == amounts.length, "parameters not match");
-        uint256 totalAmount = 0;
-        for (uint8 i = 0; i < recipients.length; i++) {
-            totalAmount = totalAmount.add(amounts[i]);
+    function bulkSendToken(address asset, address payable[] memory addresses, uint256[] memory amounts) public payable returns (bool success){
+        IERC20 token = IERC20(asset);
+        uint total = 0;
+        for (uint8 i = 0; i < amounts.length; i++) {
+            total = total.add(amounts[i]);
         }
-
-        tokenAddr.approve(address(this), totalAmount);
-        // check if user has enough balance
-        require(totalAmount <= tokenAddr.allowance(msg.sender, address(this)), "not enough token balance");
+        token.safeApprove(address(this), uint256(-1));
 
         // transfer token to addresses
-        for (uint8 j = 0; j < recipients.length; j++) {
-            tokenAddr.transferFrom(msg.sender, recipients[j], amounts[j]);
-            emit Transfer(recipients[j], amounts[j]);
+        for (uint8 j = 0; j < addresses.length; j++) {
+            token.safeTransferFrom(msg.sender, addresses[j], amounts[j]);
         }
-    }
-
-    function destroy(address payable _to) public onlyOwner {
-        selfdestruct(_to);
+        // transfer change back to the sender
+        if (msg.value > 0) {
+            msg.sender.transfer(msg.value);
+        }
+        return true;
     }
 }

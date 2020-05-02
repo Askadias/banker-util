@@ -28,10 +28,10 @@ var (
 )
 
 // MultisendABI is the input ABI used to generate the binding from.
-const MultisendABI = "[{\"inputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"refund\",\"type\":\"uint256\"}],\"name\":\"Refund\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Transfer\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"addresspayable[]\",\"name\":\"recipients\",\"type\":\"address[]\"},{\"internalType\":\"uint256[]\",\"name\":\"amounts\",\"type\":\"uint256[]\"}],\"name\":\"bulkSendEth\",\"outputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"contractToken\",\"name\":\"tokenAddr\",\"type\":\"address\"},{\"internalType\":\"address[]\",\"name\":\"recipients\",\"type\":\"address[]\"},{\"internalType\":\"uint256[]\",\"name\":\"amounts\",\"type\":\"uint256[]\"}],\"name\":\"bulkSendToken\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"addresspayable\",\"name\":\"_to\",\"type\":\"address\"}],\"name\":\"destroy\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"addresspayable\",\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const MultisendABI = "[{\"inputs\":[],\"stateMutability\":\"payable\",\"type\":\"constructor\"},{\"inputs\":[{\"internalType\":\"addresspayable[]\",\"name\":\"addresses\",\"type\":\"address[]\"},{\"internalType\":\"uint256[]\",\"name\":\"amounts\",\"type\":\"uint256[]\"}],\"name\":\"bulkSendEth\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"asset\",\"type\":\"address\"},{\"internalType\":\"addresspayable[]\",\"name\":\"addresses\",\"type\":\"address[]\"},{\"internalType\":\"uint256[]\",\"name\":\"amounts\",\"type\":\"uint256[]\"}],\"name\":\"bulkSendToken\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 // MultisendBin is the compiled bytecode used for deploying new contracts.
-var MultisendBin = "0x6080604052336000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550610d70806100536000396000f3fe60806040526004361061003e5760003560e01c8062f55d9d14610043578063046ef2bf146100945780638da5cb5b1461020d5780639bb3a22d14610264575b600080fd5b34801561004f57600080fd5b506100926004803603602081101561006657600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506103b0565b005b3480156100a057600080fd5b5061020b600480360360608110156100b757600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190803590602001906401000000008111156100f457600080fd5b82018360208201111561010657600080fd5b8035906020019184602083028401116401000000008311171561012857600080fd5b919080806020026020016040519081016040528093929190818152602001838360200280828437600081840152601f19601f8201169050808301925050505050505091929192908035906020019064010000000081111561018857600080fd5b82018360208201111561019a57600080fd5b803590602001918460208302840111640100000000831117156101bc57600080fd5b919080806020026020016040519081016040528093929190818152602001838360200280828437600081840152601f19601f820116905080830192505050505050509192919290505050610422565b005b34801561021957600080fd5b50610222610949565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b6103ae6004803603604081101561027a57600080fd5b810190808035906020019064010000000081111561029757600080fd5b8201836020820111156102a957600080fd5b803590602001918460208302840111640100000000831117156102cb57600080fd5b919080806020026020016040519081016040528093929190818152602001838360200280828437600081840152601f19601f8201169050808301925050505050505091929192908035906020019064010000000081111561032b57600080fd5b82018360208201111561033d57600080fd5b8035906020019184602083028401116401000000008311171561035f57600080fd5b919080806020026020016040519081016040528093929190818152602001838360200280828437600081840152601f19601f82011690508083019250505050505050919291929050505061096e565b005b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161461040957600080fd5b8073ffffffffffffffffffffffffffffffffffffffff16ff5b61012c8251111561047e576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526027815260200180610d156027913960400191505060405180910390fd5b80518251146104f5576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260148152602001807f706172616d6574657273206e6f74206d6174636800000000000000000000000081525060200191505060405180910390fd5b600080905060008090505b83518160ff16101561054457610535838260ff168151811061051e57fe5b602002602001015183610cd590919063ffffffff16565b91508080600101915050610500565b508373ffffffffffffffffffffffffffffffffffffffff1663095ea7b330836040518363ffffffff1660e01b8152600401808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200182815260200192505050602060405180830381600087803b1580156105cc57600080fd5b505af11580156105e0573d6000803e3d6000fd5b505050506040513d60208110156105f657600080fd5b8101908080519060200190929190505050508373ffffffffffffffffffffffffffffffffffffffff1663dd62ed3e33306040518363ffffffff1660e01b8152600401808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019250505060206040518083038186803b1580156106b957600080fd5b505afa1580156106cd573d6000803e3d6000fd5b505050506040513d60208110156106e357600080fd5b8101908080519060200190929190505050811115610769576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260188152602001807f6e6f7420656e6f75676820746f6b656e2062616c616e6365000000000000000081525060200191505060405180910390fd5b60008090505b83518160ff161015610942578473ffffffffffffffffffffffffffffffffffffffff166323b872dd33868460ff16815181106107a757fe5b6020026020010151868560ff16815181106107be57fe5b60200260200101516040518463ffffffff1660e01b8152600401808473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018281526020019350505050602060405180830381600087803b15801561086257600080fd5b505af1158015610876573d6000803e3d6000fd5b505050506040513d602081101561088c57600080fd5b8101908080519060200190929190505050507f69ca02dd4edd7bf0a4abb9ed3b7af3f14778db5d61921c7dc7cd545266326de2848260ff16815181106108ce57fe5b6020026020010151848360ff16815181106108e557fe5b6020026020010151604051808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018281526020019250505060405180910390a1808060010191505061076f565b5050505050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b61012c825111156109ca576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526027815260200180610d156027913960400191505060405180910390fd5b8051825114610a41576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260148152602001807f706172616d6574657273206e6f74206d6174636800000000000000000000000081525060200191505060405180910390fd5b600080905060008090505b83518160ff161015610a9057610a81838260ff1681518110610a6a57fe5b602002602001015183610cd590919063ffffffff16565b91508080600101915050610a4c565b5080341015610b07576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260108152602001807f6e6f7420656e6f75676820746f6b656e0000000000000000000000000000000081525060200191505060405180910390fd5b60008090505b83518160ff161015610c3057838160ff1681518110610b2857fe5b602002602001015173ffffffffffffffffffffffffffffffffffffffff166108fc848360ff1681518110610b5857fe5b60200260200101519081150290604051600060405180830381858888f19350505050158015610b8b573d6000803e3d6000fd5b507f69ca02dd4edd7bf0a4abb9ed3b7af3f14778db5d61921c7dc7cd545266326de2848260ff1681518110610bbc57fe5b6020026020010151848360ff1681518110610bd357fe5b6020026020010151604051808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018281526020019250505060405180910390a18080600101915050610b0d565b5080341115610cd0576000610c4e8234610cf490919063ffffffff16565b90503373ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f19350505050158015610c96573d6000803e3d6000fd5b507f2e1897b0591d764356194f7a795238a87c1987c7a877568e50d829d547c92b97816040518082815260200191505060405180910390a1505b505050565b600080828401905083811015610cea57600080fd5b8091505092915050565b600082821115610d0357600080fd5b60008284039050809150509291505056fe6e756d626572206f6620726563697069656e7473206973206c6172676572207468616e20333030a265627a7a7231582009c730c67b1f8c0f9b8ec0d2daae2dc1bc406b36dcf75122c95e64be0a7ed7fc64736f6c63430005110032"
+var MultisendBin = "0x6080604052336000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550610e2c806100536000396000f3fe6080604052600436106100345760003560e01c8063046ef2bf146100395780638da5cb5b146101bd5780639bb3a22d14610214575b600080fd5b6101a36004803603606081101561004f57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291908035906020019064010000000081111561008c57600080fd5b82018360208201111561009e57600080fd5b803590602001918460208302840111640100000000831117156100c057600080fd5b919080806020026020016040519081016040528093929190818152602001838360200280828437600081840152601f19601f8201169050808301925050505050505091929192908035906020019064010000000081111561012057600080fd5b82018360208201111561013257600080fd5b8035906020019184602083028401116401000000008311171561015457600080fd5b919080806020026020016040519081016040528093929190818152602001838360200280828437600081840152601f19601f820116905080830192505050505050509192919290505050610378565b604051808215151515815260200191505060405180910390f35b3480156101c957600080fd5b506101d26104f0565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b61035e6004803603604081101561022a57600080fd5b810190808035906020019064010000000081111561024757600080fd5b82018360208201111561025957600080fd5b8035906020019184602083028401116401000000008311171561027b57600080fd5b919080806020026020016040519081016040528093929190818152602001838360200280828437600081840152601f19601f820116905080830192505050505050509192919290803590602001906401000000008111156102db57600080fd5b8201836020820111156102ed57600080fd5b8035906020019184602083028401116401000000008311171561030f57600080fd5b919080806020026020016040519081016040528093929190818152602001838360200280828437600081840152601f19601f820116905080830192505050505050509192919290505050610515565b604051808215151515815260200191505060405180910390f35b600080849050600080905060008090505b84518160ff1610156103cd576103be858260ff16815181106103a757fe5b60200260200101518361067a90919063ffffffff16565b91508080600101915050610389565b50610419307fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8473ffffffffffffffffffffffffffffffffffffffff166107029092919063ffffffff16565b60008090505b85518160ff1610156104915761048433878360ff168151811061043e57fe5b6020026020010151878460ff168151811061045557fe5b60200260200101518673ffffffffffffffffffffffffffffffffffffffff16610909909392919063ffffffff16565b808060010191505061041f565b5060003411156104e3573373ffffffffffffffffffffffffffffffffffffffff166108fc349081150290604051600060405180830381858888f193505050501580156104e1573d6000803e3d6000fd5b505b6001925050509392505050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000806000905060008090505b83518160ff16101561056657610557848260ff168151811061054057fe5b60200260200101518361067a90919063ffffffff16565b91508080600101915050610522565b508034101561057457600080fd5b60008090505b84518160ff16101561060657848160ff168151811061059557fe5b602002602001015173ffffffffffffffffffffffffffffffffffffffff166108fc858360ff16815181106105c557fe5b60200260200101519081150290604051600060405180830381858888f193505050501580156105f8573d6000803e3d6000fd5b50808060010191505061057a565b508034111561066f57600061062482346109f690919063ffffffff16565b90503373ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f1935050505015801561066c573d6000803e3d6000fd5b50505b600191505092915050565b6000808284019050838110156106f8576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252601b8152602001807f536166654d6174683a206164646974696f6e206f766572666c6f77000000000081525060200191505060405180910390fd5b8091505092915050565b60008114806107fc575060008373ffffffffffffffffffffffffffffffffffffffff1663dd62ed3e30856040518363ffffffff1660e01b8152600401808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019250505060206040518083038186803b1580156107bf57600080fd5b505afa1580156107d3573d6000803e3d6000fd5b505050506040513d60208110156107e957600080fd5b8101908080519060200190929190505050145b610851576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526036815260200180610dc16036913960400191505060405180910390fd5b6109048363095ea7b360e01b8484604051602401808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200182815260200192505050604051602081830303815290604052907bffffffffffffffffffffffffffffffffffffffffffffffffffffffff19166020820180517bffffffffffffffffffffffffffffffffffffffffffffffffffffffff8381831617835250505050610a40565b505050565b6109f0846323b872dd60e01b858585604051602401808473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018281526020019350505050604051602081830303815290604052907bffffffffffffffffffffffffffffffffffffffffffffffffffffffff19166020820180517bffffffffffffffffffffffffffffffffffffffffffffffffffffffff8381831617835250505050610a40565b50505050565b6000610a3883836040518060400160405280601e81526020017f536166654d6174683a207375627472616374696f6e206f766572666c6f770000815250610c8b565b905092915050565b610a5f8273ffffffffffffffffffffffffffffffffffffffff16610d4b565b610ad1576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252601f8152602001807f5361666545524332303a2063616c6c20746f206e6f6e2d636f6e74726163740081525060200191505060405180910390fd5b600060608373ffffffffffffffffffffffffffffffffffffffff16836040518082805190602001908083835b60208310610b205780518252602082019150602081019050602083039250610afd565b6001836020036101000a0380198251168184511680821785525050505050509050019150506000604051808303816000865af19150503d8060008114610b82576040519150601f19603f3d011682016040523d82523d6000602084013e610b87565b606091505b509150915081610bff576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260208152602001807f5361666545524332303a206c6f772d6c6576656c2063616c6c206661696c656481525060200191505060405180910390fd5b600081511115610c8557808060200190516020811015610c1e57600080fd5b8101908080519060200190929190505050610c84576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252602a815260200180610d97602a913960400191505060405180910390fd5b5b50505050565b6000838311158290610d38576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825283818151815260200191508051906020019080838360005b83811015610cfd578082015181840152602081019050610ce2565b50505050905090810190601f168015610d2a5780820380516001836020036101000a031916815260200191505b509250505060405180910390fd5b5060008385039050809150509392505050565b60008060007fc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a47060001b9050833f9150808214158015610d8d57506000801b8214155b9250505091905056fe5361666545524332303a204552433230206f7065726174696f6e20646964206e6f7420737563636565645361666545524332303a20617070726f76652066726f6d206e6f6e2d7a65726f20746f206e6f6e2d7a65726f20616c6c6f77616e6365a26469706673582212205df5ec4c52b2c1466408eac49bd536bde64c75e6d4d8e7f6848c89f9000183b264736f6c63430006060033"
 
 // DeployMultisend deploys a new Ethereum contract, binding an instance of Multisend to it.
 func DeployMultisend(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Multisend, error) {
@@ -217,330 +217,42 @@ func (_Multisend *MultisendCallerSession) Owner() (common.Address, error) {
 
 // BulkSendEth is a paid mutator transaction binding the contract method 0x9bb3a22d.
 //
-// Solidity: function bulkSendEth(address[] recipients, uint256[] amounts) returns()
-func (_Multisend *MultisendTransactor) BulkSendEth(opts *bind.TransactOpts, recipients []common.Address, amounts []*big.Int) (*types.Transaction, error) {
-	return _Multisend.contract.Transact(opts, "bulkSendEth", recipients, amounts)
+// Solidity: function bulkSendEth(address[] addresses, uint256[] amounts) returns(bool success)
+func (_Multisend *MultisendTransactor) BulkSendEth(opts *bind.TransactOpts, addresses []common.Address, amounts []*big.Int) (*types.Transaction, error) {
+	return _Multisend.contract.Transact(opts, "bulkSendEth", addresses, amounts)
 }
 
 // BulkSendEth is a paid mutator transaction binding the contract method 0x9bb3a22d.
 //
-// Solidity: function bulkSendEth(address[] recipients, uint256[] amounts) returns()
-func (_Multisend *MultisendSession) BulkSendEth(recipients []common.Address, amounts []*big.Int) (*types.Transaction, error) {
-	return _Multisend.Contract.BulkSendEth(&_Multisend.TransactOpts, recipients, amounts)
+// Solidity: function bulkSendEth(address[] addresses, uint256[] amounts) returns(bool success)
+func (_Multisend *MultisendSession) BulkSendEth(addresses []common.Address, amounts []*big.Int) (*types.Transaction, error) {
+	return _Multisend.Contract.BulkSendEth(&_Multisend.TransactOpts, addresses, amounts)
 }
 
 // BulkSendEth is a paid mutator transaction binding the contract method 0x9bb3a22d.
 //
-// Solidity: function bulkSendEth(address[] recipients, uint256[] amounts) returns()
-func (_Multisend *MultisendTransactorSession) BulkSendEth(recipients []common.Address, amounts []*big.Int) (*types.Transaction, error) {
-	return _Multisend.Contract.BulkSendEth(&_Multisend.TransactOpts, recipients, amounts)
+// Solidity: function bulkSendEth(address[] addresses, uint256[] amounts) returns(bool success)
+func (_Multisend *MultisendTransactorSession) BulkSendEth(addresses []common.Address, amounts []*big.Int) (*types.Transaction, error) {
+	return _Multisend.Contract.BulkSendEth(&_Multisend.TransactOpts, addresses, amounts)
 }
 
 // BulkSendToken is a paid mutator transaction binding the contract method 0x046ef2bf.
 //
-// Solidity: function bulkSendToken(address tokenAddr, address[] recipients, uint256[] amounts) returns()
-func (_Multisend *MultisendTransactor) BulkSendToken(opts *bind.TransactOpts, tokenAddr common.Address, recipients []common.Address, amounts []*big.Int) (*types.Transaction, error) {
-	return _Multisend.contract.Transact(opts, "bulkSendToken", tokenAddr, recipients, amounts)
+// Solidity: function bulkSendToken(address asset, address[] addresses, uint256[] amounts) returns(bool success)
+func (_Multisend *MultisendTransactor) BulkSendToken(opts *bind.TransactOpts, asset common.Address, addresses []common.Address, amounts []*big.Int) (*types.Transaction, error) {
+	return _Multisend.contract.Transact(opts, "bulkSendToken", asset, addresses, amounts)
 }
 
 // BulkSendToken is a paid mutator transaction binding the contract method 0x046ef2bf.
 //
-// Solidity: function bulkSendToken(address tokenAddr, address[] recipients, uint256[] amounts) returns()
-func (_Multisend *MultisendSession) BulkSendToken(tokenAddr common.Address, recipients []common.Address, amounts []*big.Int) (*types.Transaction, error) {
-	return _Multisend.Contract.BulkSendToken(&_Multisend.TransactOpts, tokenAddr, recipients, amounts)
+// Solidity: function bulkSendToken(address asset, address[] addresses, uint256[] amounts) returns(bool success)
+func (_Multisend *MultisendSession) BulkSendToken(asset common.Address, addresses []common.Address, amounts []*big.Int) (*types.Transaction, error) {
+	return _Multisend.Contract.BulkSendToken(&_Multisend.TransactOpts, asset, addresses, amounts)
 }
 
 // BulkSendToken is a paid mutator transaction binding the contract method 0x046ef2bf.
 //
-// Solidity: function bulkSendToken(address tokenAddr, address[] recipients, uint256[] amounts) returns()
-func (_Multisend *MultisendTransactorSession) BulkSendToken(tokenAddr common.Address, recipients []common.Address, amounts []*big.Int) (*types.Transaction, error) {
-	return _Multisend.Contract.BulkSendToken(&_Multisend.TransactOpts, tokenAddr, recipients, amounts)
-}
-
-// Destroy is a paid mutator transaction binding the contract method 0x00f55d9d.
-//
-// Solidity: function destroy(address _to) returns()
-func (_Multisend *MultisendTransactor) Destroy(opts *bind.TransactOpts, _to common.Address) (*types.Transaction, error) {
-	return _Multisend.contract.Transact(opts, "destroy", _to)
-}
-
-// Destroy is a paid mutator transaction binding the contract method 0x00f55d9d.
-//
-// Solidity: function destroy(address _to) returns()
-func (_Multisend *MultisendSession) Destroy(_to common.Address) (*types.Transaction, error) {
-	return _Multisend.Contract.Destroy(&_Multisend.TransactOpts, _to)
-}
-
-// Destroy is a paid mutator transaction binding the contract method 0x00f55d9d.
-//
-// Solidity: function destroy(address _to) returns()
-func (_Multisend *MultisendTransactorSession) Destroy(_to common.Address) (*types.Transaction, error) {
-	return _Multisend.Contract.Destroy(&_Multisend.TransactOpts, _to)
-}
-
-// MultisendRefundIterator is returned from FilterRefund and is used to iterate over the raw logs and unpacked data for Refund events raised by the Multisend contract.
-type MultisendRefundIterator struct {
-	Event *MultisendRefund // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *MultisendRefundIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(MultisendRefund)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(MultisendRefund)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *MultisendRefundIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *MultisendRefundIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// MultisendRefund represents a Refund event raised by the Multisend contract.
-type MultisendRefund struct {
-	Refund *big.Int
-	Raw    types.Log // Blockchain specific contextual infos
-}
-
-// FilterRefund is a free log retrieval operation binding the contract event 0x2e1897b0591d764356194f7a795238a87c1987c7a877568e50d829d547c92b97.
-//
-// Solidity: event Refund(uint256 refund)
-func (_Multisend *MultisendFilterer) FilterRefund(opts *bind.FilterOpts) (*MultisendRefundIterator, error) {
-
-	logs, sub, err := _Multisend.contract.FilterLogs(opts, "Refund")
-	if err != nil {
-		return nil, err
-	}
-	return &MultisendRefundIterator{contract: _Multisend.contract, event: "Refund", logs: logs, sub: sub}, nil
-}
-
-// WatchRefund is a free log subscription operation binding the contract event 0x2e1897b0591d764356194f7a795238a87c1987c7a877568e50d829d547c92b97.
-//
-// Solidity: event Refund(uint256 refund)
-func (_Multisend *MultisendFilterer) WatchRefund(opts *bind.WatchOpts, sink chan<- *MultisendRefund) (event.Subscription, error) {
-
-	logs, sub, err := _Multisend.contract.WatchLogs(opts, "Refund")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(MultisendRefund)
-				if err := _Multisend.contract.UnpackLog(event, "Refund", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseRefund is a log parse operation binding the contract event 0x2e1897b0591d764356194f7a795238a87c1987c7a877568e50d829d547c92b97.
-//
-// Solidity: event Refund(uint256 refund)
-func (_Multisend *MultisendFilterer) ParseRefund(log types.Log) (*MultisendRefund, error) {
-	event := new(MultisendRefund)
-	if err := _Multisend.contract.UnpackLog(event, "Refund", log); err != nil {
-		return nil, err
-	}
-	return event, nil
-}
-
-// MultisendTransferIterator is returned from FilterTransfer and is used to iterate over the raw logs and unpacked data for Transfer events raised by the Multisend contract.
-type MultisendTransferIterator struct {
-	Event *MultisendTransfer // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *MultisendTransferIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(MultisendTransfer)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(MultisendTransfer)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *MultisendTransferIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *MultisendTransferIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// MultisendTransfer represents a Transfer event raised by the Multisend contract.
-type MultisendTransfer struct {
-	Recipient common.Address
-	Amount    *big.Int
-	Raw       types.Log // Blockchain specific contextual infos
-}
-
-// FilterTransfer is a free log retrieval operation binding the contract event 0x69ca02dd4edd7bf0a4abb9ed3b7af3f14778db5d61921c7dc7cd545266326de2.
-//
-// Solidity: event Transfer(address recipient, uint256 amount)
-func (_Multisend *MultisendFilterer) FilterTransfer(opts *bind.FilterOpts) (*MultisendTransferIterator, error) {
-
-	logs, sub, err := _Multisend.contract.FilterLogs(opts, "Transfer")
-	if err != nil {
-		return nil, err
-	}
-	return &MultisendTransferIterator{contract: _Multisend.contract, event: "Transfer", logs: logs, sub: sub}, nil
-}
-
-// WatchTransfer is a free log subscription operation binding the contract event 0x69ca02dd4edd7bf0a4abb9ed3b7af3f14778db5d61921c7dc7cd545266326de2.
-//
-// Solidity: event Transfer(address recipient, uint256 amount)
-func (_Multisend *MultisendFilterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *MultisendTransfer) (event.Subscription, error) {
-
-	logs, sub, err := _Multisend.contract.WatchLogs(opts, "Transfer")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(MultisendTransfer)
-				if err := _Multisend.contract.UnpackLog(event, "Transfer", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseTransfer is a log parse operation binding the contract event 0x69ca02dd4edd7bf0a4abb9ed3b7af3f14778db5d61921c7dc7cd545266326de2.
-//
-// Solidity: event Transfer(address recipient, uint256 amount)
-func (_Multisend *MultisendFilterer) ParseTransfer(log types.Log) (*MultisendTransfer, error) {
-	event := new(MultisendTransfer)
-	if err := _Multisend.contract.UnpackLog(event, "Transfer", log); err != nil {
-		return nil, err
-	}
-	return event, nil
+// Solidity: function bulkSendToken(address asset, address[] addresses, uint256[] amounts) returns(bool success)
+func (_Multisend *MultisendTransactorSession) BulkSendToken(asset common.Address, addresses []common.Address, amounts []*big.Int) (*types.Transaction, error) {
+	return _Multisend.Contract.BulkSendToken(&_Multisend.TransactOpts, asset, addresses, amounts)
 }

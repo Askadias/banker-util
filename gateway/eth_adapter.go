@@ -21,7 +21,7 @@ import (
 const (
 	// TokenABI is the input ABI used to generate the binding from.
 	USDTContractAddress      = "0xdac17f958d2ee523a2206206994597c13d831ec7"
-	MultiSendContractAddress = "0xF62e93Eb9e92A0Cd9B9311ea01f1c74cbA5650F2"
+	MultiSendContractAddress = "0xA9E209bC50097bDe15cF67509dC91E7Dca233AA6"
 	USDTDecimal              = 6
 	GWEIDecimal              = 9
 	ETHDecimal               = 18
@@ -346,7 +346,7 @@ func (ea *EthereumAdapter) DeployMultiSendContract(ctx context.Context, w Wallet
 		return "", "", fmt.Errorf("unable to suggest gas price: %v", err)
 	}
 
-	acceleratedGasPrice := gasPrice.Mul(gasPrice, big.NewInt(2))
+	acceleratedGasPrice := gasPrice//gasPrice.Mul(gasPrice, big.NewInt(2))
 	nonce, err := ea.Client.PendingNonceAt(ctx, fromAddress)
 	if err != nil {
 		return "", "", fmt.Errorf("unable to get nonce: %v", err)
@@ -355,7 +355,7 @@ func (ea *EthereumAdapter) DeployMultiSendContract(ctx context.Context, w Wallet
 	auth := bind.NewKeyedTransactor(key)
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0)      // in wei
-	auth.GasLimit = uint64(6000000) // in units
+	auth.GasLimit = uint64(1000000) // in units
 	auth.GasPrice = acceleratedGasPrice
 	address, tx, _, err := eth.DeployMultisend(auth, ea.Client)
 	if err != nil {
