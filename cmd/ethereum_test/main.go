@@ -6,6 +6,7 @@ import (
 	"github.com/Askadias/banker-util/gateway"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"os"
+	"time"
 )
 
 func main() {
@@ -17,63 +18,69 @@ func main() {
 	hub := gateway.NewCryptoHub(map[string]gateway.Adapter{
 		"ETH": ethereum,
 	})
+	ctx := context.Background()
 
 	sourceWallet := gateway.Wallet{Address: os.Getenv("ETH_ADDRESS"), PrivateKey: os.Getenv("ETH_PRIVATE_KEY")}
 	targetWallet := gateway.Wallet{Address: os.Getenv("ETH_ADDRESS2"), PrivateKey: os.Getenv("ETH_PRIVATE_KEY2")}
 
 	// ==============================================================================================
 	// CREATE MULTI_SEND CONTRACT
-	address, contractHash, err := ethereum.DeployMultiSendContract(context.Background(), sourceWallet)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Contract address: %s\n", address)
-	fmt.Printf("Transaction: https://etherscan.io/tx/%s\n", contractHash)
+	//address, contractHash, err := ethereum.DeployMultiSendContract(ctx, sourceWallet)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//fmt.Printf("Contract address: %s\n", address)
+	//fmt.Printf("Transaction: https://etherscan.io/tx/%s\n", contractHash)
 
 
 	// ==============================================================================================
 	// CREATE WALLET
-	//targetWallet := hub.MustNewWallet(context.Background(), "ETH")
+	//targetWallet := hub.MustNewWallet(ctx, "ETH")
 	fmt.Printf("New Wallet: %s - %s\n", targetWallet.Address, targetWallet.PrivateKey)
-	sourceBalance := hub.MustGetBalance(context.Background(), "ETH", sourceWallet.Address)
-	targetBalance := hub.MustGetBalance(context.Background(), "ETH", targetWallet.Address)
+	sourceBalance := hub.MustGetBalance(ctx, "ETH", sourceWallet.Address)
+	targetBalance := hub.MustGetBalance(ctx, "ETH", targetWallet.Address)
 	fmt.Printf("Balance: %s = %v\n", sourceWallet.Address, sourceBalance)
 	fmt.Printf("Balance: %s = %v\n", targetWallet.Address, targetBalance)
 
 	// ==============================================================================================
 	// MULTI_SEND
+	//multisendApproveHashUSDT, err := ethereum.ApproveTokenMultisend(ctx, sourceWallet, "USDT")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Printf("Transaction MultiSend USDT: https://etherscan.io/tx/%s\n", multisendApproveHashUSDT)
 	multiETHWallets := []string{targetWallet.Address, targetWallet.Address, targetWallet.Address}
 	multiETHAmounts := []float64{0.01, 0.01, 0.01}
-	multiUSDTWallets := []string{targetWallet.Address}
-	multiUSDTAmounts := []float64{0}
-	estimatedETH := hub.MustEstimateMultiSendFee(context.Background(), "ETH", sourceWallet, "ETH", multiETHWallets, multiETHAmounts)
+	multiUSDTWallets := []string{targetWallet.Address, targetWallet.Address, targetWallet.Address}
+	multiUSDTAmounts := []float64{0.01, 0.01, 0.01}
+	estimatedETH := hub.MustEstimateMultiSendFee(ctx, "ETH", sourceWallet, "ETH", multiETHWallets, multiETHAmounts)
 	fmt.Printf("Multisend Estimation: %s -> %s %0.9f 0.01x3 ETH\n", sourceWallet.Address, targetWallet.Address, estimatedETH)
-	estimatedUSDT := hub.MustEstimateMultiSendFee(context.Background(), "ETH", sourceWallet, "USDT", multiUSDTWallets, multiUSDTAmounts)
+	estimatedUSDT := hub.MustEstimateMultiSendFee(ctx, "ETH", sourceWallet, "USDT", multiUSDTWallets, multiUSDTAmounts)
 	fmt.Printf("Multisend Estimation: %s -> %s %0.9f 0.1x3 USDT\n", sourceWallet.Address, targetWallet.Address, estimatedUSDT)
 
-	//multisendHashETH := hub.MustMultiSend(context.Background(), "ETH", sourceWallet, "ETH", multiETHWallets, multiETHAmounts)
-	//fmt.Printf("Transaction MultiSend ETH: https://etherscan.io/tx/%s\n", multisendHashETH)
+	multisendHashETH := hub.MustMultiSend(ctx, "ETH", sourceWallet, "ETH", multiETHWallets, multiETHAmounts)
+	fmt.Printf("Transaction MultiSend ETH: https://etherscan.io/tx/%s\n", multisendHashETH)
 	//time.Sleep(1 * time.Minute)
-	multisendHashUSDT := hub.MustMultiSend(context.Background(), "ETH", sourceWallet, "USDT", multiUSDTWallets, multiUSDTAmounts)
+	multisendHashUSDT := hub.MustMultiSend(ctx, "ETH", sourceWallet, "USDT", multiUSDTWallets, multiUSDTAmounts)
 	fmt.Printf("Transaction MultiSend USDT: https://etherscan.io/tx/%s\n", multisendHashUSDT)
-	//time.Sleep(2 * time.Minute)
-	sourceBalance = hub.MustGetBalance(context.Background(), "ETH", sourceWallet.Address)
-	targetBalance = hub.MustGetBalance(context.Background(), "ETH", targetWallet.Address)
+	time.Sleep(2 * time.Minute)
+	sourceBalance = hub.MustGetBalance(ctx, "ETH", sourceWallet.Address)
+	targetBalance = hub.MustGetBalance(ctx, "ETH", targetWallet.Address)
 	fmt.Printf("Balance: %s = %v\n", sourceWallet.Address, sourceBalance)
 	fmt.Printf("Balance: %s = %v\n", targetWallet.Address, targetBalance)
 
 	// ==============================================================================================
 	// SEND USDT
-	estimatedUSDT = hub.MustEstimateSendFee(context.Background(), "ETH", targetWallet, "USDT", targetBalance["USDT"], sourceWallet.Address)
-	fmt.Printf("Estimation: %s -> %s %0.9f %0.9f USDT\n", targetWallet.Address, sourceWallet.Address, estimatedUSDT, targetBalance["USDT"])
-	sendHashUSDT := hub.MustSend(context.Background(), "ETH", targetWallet, "USDT", targetBalance["USDT"], sourceWallet.Address)
+	estimatedUSDT = hub.MustEstimateSendFee(ctx, "ETH", targetWallet, "USDT", targetBalance["USDT"], sourceWallet.Address)
+	fmt.Printf("Estimation: %s -> %s %0.9f USDT + %0.9f ETH\n", targetWallet.Address, sourceWallet.Address, targetBalance["USDT"], estimatedUSDT)
+	sendHashUSDT := hub.MustSend(ctx, "ETH", targetWallet, "USDT", targetBalance["USDT"], sourceWallet.Address)
 	fmt.Printf("Transaction Send USDT: https://etherscan.io/tx/%s\n", sendHashUSDT)
 
 	// ==============================================================================================
 	// SEND ETH
-	estimatedETH = hub.MustEstimateSendFee(context.Background(), "ETH", targetWallet, "ETH", targetBalance["ETH"], sourceWallet.Address)
-	fmt.Printf("Estimation: %s -> %s %0.9f %0.9f ETH\n", targetWallet.Address, sourceWallet.Address, estimatedETH, targetBalance["ETH"]-estimatedUSDT)
-	sendHashETH := hub.MustSend(context.Background(), "ETH", targetWallet, "ETH", targetBalance["ETH"]-estimatedETH-estimatedUSDT, sourceWallet.Address)
+	estimatedETH = hub.MustEstimateSendFee(ctx, "ETH", targetWallet, "ETH", targetBalance["ETH"], sourceWallet.Address)
+	fmt.Printf("Estimation: %s -> %s %0.9f ETH + %0.9f ETH\n", targetWallet.Address, sourceWallet.Address, targetBalance["ETH"]-estimatedETH, estimatedETH)
+	sendHashETH := hub.MustSend(ctx, "ETH", targetWallet, "ETH", targetBalance["ETH"]-estimatedETH, sourceWallet.Address)
 	fmt.Printf("Transaction Send ETH: https://etherscan.io/tx/%s\n", sendHashETH)
 }
