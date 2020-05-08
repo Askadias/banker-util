@@ -18,11 +18,12 @@ const (
 )
 
 type MinterAdapter struct {
-	Client *api.Api
+	BaseCoin string
+	Client   *api.Api
 }
 
 func NewMinterAdapter(minterClient *api.Api) *MinterAdapter {
-	return &MinterAdapter{Client: minterClient}
+	return &MinterAdapter{BaseCoin: "BIP", Client: minterClient}
 }
 
 func (ma *MinterAdapter) getWallet(mnemonic string) (*wallet.Wallet, error) {
@@ -38,17 +39,17 @@ func (ma *MinterAdapter) getWallet(mnemonic string) (*wallet.Wallet, error) {
 }
 
 func (ma *MinterAdapter) FindWallet(ctx context.Context, privateKey string) (Wallet, error) {
-	emptyWallet := Wallet{"", ""}
+	emptyWallet := Wallet{"", "", ""}
 	mntWallet, err := ma.getWallet(privateKey)
 	if err != nil {
 		return emptyWallet, err
 	}
-	return Wallet{mntWallet.Address(), privateKey}, nil
+	return Wallet{ma.BaseCoin, mntWallet.Address(), privateKey}, nil
 }
 
 func (ma *MinterAdapter) NewWallet(ctx context.Context) (Wallet, error) {
 	mnemonic, err := wallet.NewMnemonic()
-	emptyWallet := Wallet{"", ""}
+	emptyWallet := Wallet{"", "", ""}
 	if err != nil {
 		return emptyWallet, fmt.Errorf("unable to generate wallet mnemonic: %v", err)
 	}
@@ -56,7 +57,7 @@ func (ma *MinterAdapter) NewWallet(ctx context.Context) (Wallet, error) {
 	if err != nil {
 		return emptyWallet, err
 	}
-	return Wallet{mntWallet.Address(), mnemonic}, nil
+	return Wallet{ma.BaseCoin, mntWallet.Address(), mnemonic}, nil
 }
 
 func (ma *MinterAdapter) GetBalance(ctx context.Context, address string) (map[string]float64, error) {

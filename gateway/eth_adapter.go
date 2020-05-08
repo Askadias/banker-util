@@ -34,15 +34,16 @@ var (
 	tokens = map[string]tokenConfig{
 		"USDT": {"0xdac17f958d2ee523a2206206994597c13d831ec7", 6},
 	}
-	MaxUint256 = big.NewInt(0).Sub(big.NewInt(0).Exp(big.NewInt(2) ,big.NewInt(256), nil), big.NewInt(1))
+	MaxUint256 = big.NewInt(0).Sub(big.NewInt(0).Exp(big.NewInt(2), big.NewInt(256), nil), big.NewInt(1))
 )
 
 type EthereumAdapter struct {
-	Client *ethclient.Client
+	BaseCoin string
+	Client   *ethclient.Client
 }
 
 func NewEthereumAdapter(ethereumClient *ethclient.Client) *EthereumAdapter {
-	return &EthereumAdapter{Client: ethereumClient}
+	return &EthereumAdapter{BaseCoin: "ETH", Client: ethereumClient}
 }
 
 func (ea *EthereumAdapter) resolveMnemonic(mnemonic string) (*hdwallet.Wallet, accounts.Account, error) {
@@ -72,7 +73,7 @@ func (ea *EthereumAdapter) getWalletKey(privateKey string) (*ecdsa.PrivateKey, e
 }
 
 func (ea *EthereumAdapter) FindWallet(ctx context.Context, privateKey string) (Wallet, error) {
-	emptyWallet := Wallet{"", ""}
+	emptyWallet := Wallet{"", "", ""}
 	key, err := ea.getWalletKey(privateKey)
 	if err != nil {
 		return emptyWallet, fmt.Errorf("unable to parse wallet private key: %v", err)
@@ -85,7 +86,7 @@ func (ea *EthereumAdapter) FindWallet(ctx context.Context, privateKey string) (W
 
 	address := crypto.PubkeyToAddress(*publicKeyECDSA)
 
-	return Wallet{address.Hex(), privateKey}, nil
+	return Wallet{ea.BaseCoin, address.Hex(), privateKey}, nil
 }
 
 func (ea *EthereumAdapter) NewWallet(ctx context.Context) (Wallet, error) {
@@ -98,7 +99,7 @@ func (ea *EthereumAdapter) NewWallet(ctx context.Context) (Wallet, error) {
 		return Wallet{}, err
 	}
 
-	return Wallet{account.Address.Hex(), mnemonic}, nil
+	return Wallet{ea.BaseCoin, account.Address.Hex(), mnemonic}, nil
 }
 
 func (ea *EthereumAdapter) GetBalance(ctx context.Context, address string) (map[string]float64, error) {
