@@ -7,6 +7,7 @@ import (
 
 type Adapter interface {
 	NewWallet(ctx context.Context) (Wallet, error)
+	FindWallet(ctx context.Context, privateKey string) (Wallet, error)
 	GetBalance(ctx context.Context, address string) (map[string]float64, error)
 	EstimateSendFee(ctx context.Context, w Wallet, coin string, amount float64, address string) (float64, error)
 	Send(ctx context.Context, w Wallet, coin string, amount float64, address string) (string, error)
@@ -33,6 +34,22 @@ func (ch *CryptoHub) MustNewWallet(ctx context.Context, baseCoin string) Wallet 
 func (ch *CryptoHub) NewWallet(ctx context.Context, baseCoin string) (Wallet, error) {
 	if adapter, ok := ch.blockChains[baseCoin]; ok {
 		return adapter.NewWallet(ctx)
+	} else {
+		return Wallet{}, fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
+	}
+}
+
+func (ch *CryptoHub) MustFindWallet(ctx context.Context, baseCoin string, privateKey string) Wallet {
+	wallet, err := ch.FindWallet(ctx, baseCoin, privateKey)
+	if err != nil {
+		panic(err)
+	}
+	return wallet
+}
+
+func (ch *CryptoHub) FindWallet(ctx context.Context, baseCoin string, privateKey string) (Wallet, error) {
+	if adapter, ok := ch.blockChains[baseCoin]; ok {
+		return adapter.FindWallet(ctx, privateKey)
 	} else {
 		return Wallet{}, fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
 	}

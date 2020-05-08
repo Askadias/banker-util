@@ -20,8 +20,8 @@ func main() {
 	})
 	ctx := context.Background()
 
-	sourceWallet := gateway.Wallet{Address: os.Getenv("ETH_ADDRESS"), PrivateKey: os.Getenv("ETH_PRIVATE_KEY")}
-	targetWallet := gateway.Wallet{Address: os.Getenv("ETH_ADDRESS2"), PrivateKey: os.Getenv("ETH_PRIVATE_KEY2")}
+	sourceWallet := hub.MustFindWallet(ctx, "ETH", os.Getenv("ETH_PRIVATE_KEY"))
+	targetWallet := hub.MustFindWallet(ctx, "ETH", os.Getenv("ETH_PRIVATE_KEY2"))
 
 	// ==============================================================================================
 	// CREATE MULTI_SEND CONTRACT

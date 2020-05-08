@@ -37,6 +37,15 @@ func (ma *MinterAdapter) getWallet(mnemonic string) (*wallet.Wallet, error) {
 	return mntWallet, nil
 }
 
+func (ma *MinterAdapter) FindWallet(ctx context.Context, privateKey string) (Wallet, error) {
+	emptyWallet := Wallet{"", ""}
+	mntWallet, err := ma.getWallet(privateKey)
+	if err != nil {
+		return emptyWallet, err
+	}
+	return Wallet{mntWallet.Address(), privateKey}, nil
+}
+
 func (ma *MinterAdapter) NewWallet(ctx context.Context) (Wallet, error) {
 	mnemonic, err := wallet.NewMnemonic()
 	emptyWallet := Wallet{"", ""}

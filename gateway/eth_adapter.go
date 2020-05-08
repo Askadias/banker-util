@@ -71,6 +71,23 @@ func (ea *EthereumAdapter) getWalletKey(privateKey string) (*ecdsa.PrivateKey, e
 	}
 }
 
+func (ea *EthereumAdapter) FindWallet(ctx context.Context, privateKey string) (Wallet, error) {
+	emptyWallet := Wallet{"", ""}
+	key, err := ea.getWalletKey(privateKey)
+	if err != nil {
+		return emptyWallet, fmt.Errorf("unable to parse wallet private key: %v", err)
+	}
+
+	publicKeyECDSA, ok := key.Public().(*ecdsa.PublicKey)
+	if !ok {
+		return emptyWallet, fmt.Errorf("unable to get public key for wallet")
+	}
+
+	address := crypto.PubkeyToAddress(*publicKeyECDSA)
+
+	return Wallet{address.Hex(), privateKey}, nil
+}
+
 func (ea *EthereumAdapter) NewWallet(ctx context.Context) (Wallet, error) {
 	mnemonic, err := hdwallet.NewMnemonic(128)
 	if err != nil {
