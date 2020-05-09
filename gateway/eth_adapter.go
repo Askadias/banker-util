@@ -118,7 +118,9 @@ func (ea *EthereumAdapter) GetBalance(ctx context.Context, address string) (map[
 		}
 
 		float64Value, _ = weiToEther(tokenBalance, conf.decimals).Float64()
-		balance[token] = float64Value
+		if float64Value > 0 {
+			balance[token] = float64Value
+		}
 	}
 	return balance, nil
 }
