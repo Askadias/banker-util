@@ -16,7 +16,7 @@ type Adapter interface {
 }
 
 type CryptoHub struct {
-	blockChains map[string]Adapter
+	BlockChains map[string]Adapter
 }
 
 func NewCryptoHub(blockChains map[string]Adapter) *CryptoHub {
@@ -32,7 +32,7 @@ func (ch *CryptoHub) MustNewWallet(ctx context.Context, baseCoin string) Wallet 
 }
 
 func (ch *CryptoHub) NewWallet(ctx context.Context, baseCoin string) (Wallet, error) {
-	if adapter, ok := ch.blockChains[baseCoin]; ok {
+	if adapter, ok := ch.BlockChains[baseCoin]; ok {
 		return adapter.NewWallet(ctx)
 	} else {
 		return Wallet{}, fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
@@ -48,7 +48,7 @@ func (ch *CryptoHub) MustFindWallet(ctx context.Context, baseCoin string, privat
 }
 
 func (ch *CryptoHub) FindWallet(ctx context.Context, baseCoin string, privateKey string) (Wallet, error) {
-	if adapter, ok := ch.blockChains[baseCoin]; ok {
+	if adapter, ok := ch.BlockChains[baseCoin]; ok {
 		return adapter.FindWallet(ctx, privateKey)
 	} else {
 		return Wallet{}, fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
@@ -64,7 +64,7 @@ func (ch *CryptoHub) MustGetBalance(ctx context.Context, baseCoin string, addres
 }
 
 func (ch *CryptoHub) GetBalance(ctx context.Context, baseCoin string, address string) (map[string]float64, error) {
-	if adapter, ok := ch.blockChains[baseCoin]; ok {
+	if adapter, ok := ch.BlockChains[baseCoin]; ok {
 		return adapter.GetBalance(ctx, address)
 	} else {
 		return map[string]float64{}, fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
@@ -80,7 +80,7 @@ func (ch *CryptoHub) MustSend(ctx context.Context, baseCoin string, w Wallet, co
 }
 
 func (ch *CryptoHub) Send(ctx context.Context, baseCoin string, w Wallet, coin string, amount float64, address string) (string, error) {
-	if adapter, ok := ch.blockChains[baseCoin]; ok {
+	if adapter, ok := ch.BlockChains[baseCoin]; ok {
 		return adapter.Send(ctx, w, coin, amount, address)
 	} else {
 		return "", fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
@@ -96,7 +96,7 @@ func (ch *CryptoHub) MustEstimateSendFee(ctx context.Context, baseCoin string, w
 }
 
 func (ch *CryptoHub) EstimateSendFee(ctx context.Context, baseCoin string, w Wallet, coin string, amount float64, address string) (float64, error) {
-	if adapter, ok := ch.blockChains[baseCoin]; ok {
+	if adapter, ok := ch.BlockChains[baseCoin]; ok {
 		return adapter.EstimateSendFee(ctx, w, coin, amount, address)
 	} else {
 		return 0, fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
@@ -112,7 +112,7 @@ func (ch *CryptoHub) MustMultiSend(ctx context.Context, baseCoin string, w Walle
 }
 
 func (ch *CryptoHub) MultiSend(ctx context.Context, baseCoin string, w Wallet, coin string, addresses []string, amounts []float64) (string, error) {
-	if adapter, ok := ch.blockChains[baseCoin]; ok {
+	if adapter, ok := ch.BlockChains[baseCoin]; ok {
 		if len(addresses) != len(amounts) {
 			return "", fmt.Errorf("number of addresses should be equal to numberr of amounts")
 		}
@@ -131,7 +131,7 @@ func (ch *CryptoHub) MustEstimateMultiSendFee(ctx context.Context, baseCoin stri
 }
 
 func (ch *CryptoHub) EstimateMultiSendFee(ctx context.Context, baseCoin string, w Wallet, coin string, addresses []string, amounts []float64) (float64, error) {
-	if adapter, ok := ch.blockChains[baseCoin]; ok {
+	if adapter, ok := ch.BlockChains[baseCoin]; ok {
 		if len(addresses) != len(amounts) {
 			return 0, fmt.Errorf("number of addresses should be equal to numberr of amounts")
 		}
