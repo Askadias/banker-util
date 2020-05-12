@@ -44,11 +44,11 @@ func main() {
 
 	// ==============================================================================================
 	// MULTI_SEND
-	multisendApproveHashUSDT, err := ethereum.ApproveTokenMultisend(ctx, sourceWallet, "USDT")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Transaction MultiSend USDT: https://etherscan.io/tx/%s\n", multisendApproveHashUSDT)
+	//multisendApproveHashUSDT, err := ethereum.ApproveTokenMultisend(ctx, sourceWallet, "USDT")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Printf("Transaction MultiSend USDT: https://etherscan.io/tx/%s\n", multisendApproveHashUSDT)
 	multiETHWallets := []string{targetWallet.Address, targetWallet.Address, targetWallet.Address}
 	multiETHAmounts := []float64{0.01, 0.01, 0.01}
 	multiUSDTWallets := []string{targetWallet.Address, targetWallet.Address, targetWallet.Address}
