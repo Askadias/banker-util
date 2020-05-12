@@ -18,12 +18,12 @@ const (
 )
 
 type MinterAdapter struct {
-	BaseCoin string
-	Client   *api.Api
+	baseCoin string
+	client   *api.Api
 }
 
 func NewMinterAdapter(minterClient *api.Api) *MinterAdapter {
-	return &MinterAdapter{BaseCoin: "BIP", Client: minterClient}
+	return &MinterAdapter{baseCoin: "BIP", client: minterClient}
 }
 
 func (ma *MinterAdapter) getWallet(mnemonic string) (*wallet.Wallet, error) {
@@ -44,7 +44,7 @@ func (ma *MinterAdapter) FindWallet(ctx context.Context, privateKey string) (Wal
 	if err != nil {
 		return emptyWallet, err
 	}
-	return Wallet{ma.BaseCoin, mntWallet.Address(), privateKey}, nil
+	return Wallet{ma.baseCoin, mntWallet.Address(), privateKey}, nil
 }
 
 func (ma *MinterAdapter) NewWallet(ctx context.Context) (Wallet, error) {
@@ -57,12 +57,12 @@ func (ma *MinterAdapter) NewWallet(ctx context.Context) (Wallet, error) {
 	if err != nil {
 		return emptyWallet, err
 	}
-	return Wallet{ma.BaseCoin, mntWallet.Address(), mnemonic}, nil
+	return Wallet{ma.baseCoin, mntWallet.Address(), mnemonic}, nil
 }
 
 func (ma *MinterAdapter) GetBalance(ctx context.Context, address string) (map[string]float64, error) {
 	balance := map[string]float64{}
-	result, err := ma.Client.Balance(address)
+	result, err := ma.client.Balance(address)
 	if err != nil {
 		return balance, fmt.Errorf("unable to get balance: %v", err)
 	}
@@ -92,7 +92,7 @@ func (ma *MinterAdapter) SellAll(ctx context.Context, w Wallet, coin string) (st
 		return "", err
 	}
 
-	nonce, err := ma.Client.Nonce(mntWallet.Address())
+	nonce, err := ma.client.Nonce(mntWallet.Address())
 	if err != nil {
 		return "", err
 	}
@@ -106,7 +106,7 @@ func (ma *MinterAdapter) SellAll(ctx context.Context, w Wallet, coin string) (st
 		return "", fmt.Errorf("unable to create transaction to sell coin %s: %v", coin, err)
 	}
 
-	res, err := ma.Client.SendTransaction(signedTransaction)
+	res, err := ma.client.SendTransaction(signedTransaction)
 	if err != nil {
 		return "", fmt.Errorf("unable to sell coin %s: %v", coin, err)
 	}
@@ -129,7 +129,7 @@ func (ma *MinterAdapter) prepareSendTx(w Wallet, coin string, amount float64, ad
 		return nil, 0, err
 	}
 
-	nonce, err := ma.Client.Nonce(mntWallet.Address())
+	nonce, err := ma.client.Nonce(mntWallet.Address())
 	if err != nil {
 		return nil, 0, fmt.Errorf("unable to generate nonce: %v", err)
 	}
@@ -148,7 +148,7 @@ func (ma *MinterAdapter) EstimateSendFee(ctx context.Context, w Wallet, coin str
 	if err != nil {
 		return 0, fmt.Errorf("unable to create transaction to send coin %s to %s: %v", coin, address, err)
 	}
-	res, err := ma.Client.EstimateTxCommission(signedTransaction)
+	res, err := ma.client.EstimateTxCommission(signedTransaction)
 	if err != nil {
 		return 0, fmt.Errorf("unable to estimate send transatcion of %s to %s: %v", coin, address, err)
 	}
@@ -173,7 +173,7 @@ func (ma *MinterAdapter) Send(ctx context.Context, w Wallet, coin string, amount
 		}
 		prevNonce = nonce
 
-		res, err := ma.Client.SendTransaction(signedTransaction)
+		res, err := ma.client.SendTransaction(signedTransaction)
 		if err != nil {
 			err = tryParseError(err)
 			if isTransactionInMempool(err) {
@@ -203,7 +203,7 @@ func (ma *MinterAdapter) prepareMultiSendTx(w Wallet, coin string, addresses []s
 		return nil, 0, err
 	}
 
-	nonce, err := ma.Client.Nonce(mntWallet.Address())
+	nonce, err := ma.client.Nonce(mntWallet.Address())
 	if err != nil {
 		return nil, 0, fmt.Errorf("unable to generate nonce: %v", err)
 	}
@@ -234,7 +234,7 @@ func (ma *MinterAdapter) MultiSend(ctx context.Context, w Wallet, coin string, a
 		}
 		prevNonce = nonce
 
-		res, err := ma.Client.SendTransaction(signedTransaction)
+		res, err := ma.client.SendTransaction(signedTransaction)
 		if err != nil {
 			err = tryParseError(err)
 			if isTransactionInMempool(err) {
@@ -252,7 +252,7 @@ func (ma *MinterAdapter) EstimateMultiSendFee(ctx context.Context, w Wallet, coi
 	if err != nil {
 		return 0, fmt.Errorf("unable to create transaction to multisend coin %s to %v: %v", coin, amounts, err)
 	}
-	res, err := ma.Client.EstimateTxCommission(signedTransaction)
+	res, err := ma.client.EstimateTxCommission(signedTransaction)
 	if err != nil {
 		return 0, fmt.Errorf("unable to estimate multisend transaction of %s to %v: %v", coin, amounts, err)
 	}

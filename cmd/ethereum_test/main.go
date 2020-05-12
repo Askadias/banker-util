@@ -6,7 +6,6 @@ import (
 	"github.com/Askadias/banker-util/gateway"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"os"
-	"time"
 )
 
 func main() {
@@ -14,7 +13,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ethereum := gateway.NewEthereumAdapter(ethereumClient)
+	ethereum := gateway.NewEthereumAdapter(ethereumClient, 10)
 	hub := gateway.NewCryptoHub(map[string]gateway.Adapter{
 		"ETH": ethereum,
 	})
@@ -45,11 +44,11 @@ func main() {
 
 	// ==============================================================================================
 	// MULTI_SEND
-	//multisendApproveHashUSDT, err := ethereum.ApproveTokenMultisend(ctx, sourceWallet, "USDT")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Printf("Transaction MultiSend USDT: https://etherscan.io/tx/%s\n", multisendApproveHashUSDT)
+	multisendApproveHashUSDT, err := ethereum.ApproveTokenMultisend(ctx, sourceWallet, "USDT")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Transaction MultiSend USDT: https://etherscan.io/tx/%s\n", multisendApproveHashUSDT)
 	multiETHWallets := []string{targetWallet.Address, targetWallet.Address, targetWallet.Address}
 	multiETHAmounts := []float64{0.01, 0.01, 0.01}
 	multiUSDTWallets := []string{targetWallet.Address, targetWallet.Address, targetWallet.Address}
@@ -64,7 +63,7 @@ func main() {
 	//time.Sleep(1 * time.Minute)
 	multisendHashUSDT := hub.MustMultiSend(ctx, "ETH", sourceWallet, "USDT", multiUSDTWallets, multiUSDTAmounts)
 	fmt.Printf("Transaction MultiSend USDT: https://etherscan.io/tx/%s\n", multisendHashUSDT)
-	time.Sleep(2 * time.Minute)
+	//time.Sleep(2 * time.Minute)
 	sourceBalance = hub.MustGetBalance(ctx, "ETH", sourceWallet.Address)
 	targetBalance = hub.MustGetBalance(ctx, "ETH", targetWallet.Address)
 	fmt.Printf("Balance: %s = %v\n", sourceWallet.Address, sourceBalance)

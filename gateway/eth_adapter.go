@@ -21,6 +21,7 @@ import (
 const (
 	// TokenABI is the input ABI used to generate the binding from.
 	MultiSendContractAddress = "0x96AF6B6c38636512075754066327d96F5cEDc81c"
+	GWEIDecimal              = 9
 	ETHDecimal               = 18
 	ETHDerivationPath        = "m/44'/60'/0'/0/0"
 )
@@ -38,12 +39,17 @@ var (
 )
 
 type EthereumAdapter struct {
-	BaseCoin string
-	Client   *ethclient.Client
+	baseCoin string
+	client   *ethclient.Client
+	gasPrice *big.Int
 }
 
-func NewEthereumAdapter(ethereumClient *ethclient.Client) *EthereumAdapter {
-	return &EthereumAdapter{BaseCoin: "ETH", Client: ethereumClient}
+func NewEthereumAdapter(ethereumClient *ethclient.Client, gasPriceGwei float64) *EthereumAdapter {
+	return &EthereumAdapter{
+		baseCoin: "ETH",
+		client:   ethereumClient,
+		gasPrice: etherToWei(gasPriceGwei, GWEIDecimal),
+	}
 }
 
 func (ea *EthereumAdapter) resolveMnemonic(mnemonic string) (*hdwallet.Wallet, accounts.Account, error) {
@@ -86,7 +92,7 @@ func (ea *EthereumAdapter) FindWallet(ctx context.Context, privateKey string) (W
 
 	address := crypto.PubkeyToAddress(*publicKeyECDSA)
 
-	return Wallet{ea.BaseCoin, address.Hex(), privateKey}, nil
+	return Wallet{ea.baseCoin, address.Hex(), privateKey}, nil
 }
 
 func (ea *EthereumAdapter) NewWallet(ctx context.Context) (Wallet, error) {
@@ -99,12 +105,12 @@ func (ea *EthereumAdapter) NewWallet(ctx context.Context) (Wallet, error) {
 		return Wallet{}, err
 	}
 
-	return Wallet{ea.BaseCoin, account.Address.Hex(), mnemonic}, nil
+	return Wallet{ea.baseCoin, account.Address.Hex(), mnemonic}, nil
 }
 
 func (ea *EthereumAdapter) GetBalance(ctx context.Context, address string) (map[string]float64, error) {
 	balance := map[string]float64{}
-	ethBalance, err := ea.Client.PendingBalanceAt(ctx, common.HexToAddress(address))
+	ethBalance, err := ea.client.PendingBalanceAt(ctx, common.HexToAddress(address))
 	if err != nil {
 		return balance, err
 	}
@@ -126,7 +132,7 @@ func (ea *EthereumAdapter) GetBalance(ctx context.Context, address string) (map[
 }
 
 func (ea *EthereumAdapter) getTokenBalance(tokenContractAddress, address string) (*big.Int, error) {
-	caller, err := eth.NewToken(common.HexToAddress(tokenContractAddress), ea.Client)
+	caller, err := eth.NewToken(common.HexToAddress(tokenContractAddress), ea.client)
 	if err != nil {
 		return nil, fmt.Errorf("unable to bind token contract: %v", err)
 	}
@@ -145,22 +151,23 @@ func (ea *EthereumAdapter) EstimateSendFee(ctx context.Context, w Wallet, coin s
 	}
 
 	from := crypto.PubkeyToAddress(*publicKeyECDSA)
-	gasPrice, err := ea.Client.SuggestGasPrice(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("unable to get suggested gasPrice: %v", err)
-	}
-
-	acceleratedGasPrice := gasPrice.Mul(gasPrice, big.NewInt(2))
+	//gasPrice, err := ea.client.SuggestGasPrice(ctx)
+	//if err != nil {
+	//	return 0, fmt.Errorf("unable to get suggested gasPrice: %v", err)
+	//}
+	//
+	//acceleratedGasPrice := gasPrice.Mul(gasPrice, big.NewInt(2))
+	//gasPrice := big.NewInt(0)//etherToWei(10, GWEIDecimal)
 
 	if coin == "ETH" {
 		to := common.HexToAddress(address)
-		msg := ethereum.CallMsg{From: from, To: &to, GasPrice: acceleratedGasPrice, Value: etherToWei(amount, ETHDecimal), Data: nil}
-		estimatedFee, err := ea.Client.EstimateGas(ctx, msg)
+		msg := ethereum.CallMsg{From: from, To: &to, GasPrice: ea.gasPrice, Value: etherToWei(amount, ETHDecimal), Data: nil}
+		estimatedFee, err := ea.client.EstimateGas(ctx, msg)
 		if err != nil {
 			return 0, fmt.Errorf("unable to estimate gas price: %v", err)
 		}
 
-		fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(estimatedFee)), acceleratedGasPrice), ETHDecimal).Float64()
+		fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(estimatedFee)), ea.gasPrice), ETHDecimal).Float64()
 		return fee, nil
 	} else if tokenConf, ok := tokens[coin]; ok {
 		data, err := eth.PackTransferData(common.HexToAddress(address), etherToWei(amount, tokenConf.decimals))
@@ -169,13 +176,13 @@ func (ea *EthereumAdapter) EstimateSendFee(ctx context.Context, w Wallet, coin s
 		}
 
 		to := common.HexToAddress(tokenConf.address)
-		msg := ethereum.CallMsg{From: from, To: &to, GasPrice: acceleratedGasPrice, Value: big.NewInt(0), Data: data}
-		estimatedFee, err := ea.Client.EstimateGas(ctx, msg)
+		msg := ethereum.CallMsg{From: from, To: &to, GasPrice: ea.gasPrice, Value: big.NewInt(0), Data: data}
+		estimatedFee, err := ea.client.EstimateGas(ctx, msg)
 		if err != nil {
 			return 0, fmt.Errorf("unable to estimate gas price: %v", err)
 		}
 
-		fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(estimatedFee)), acceleratedGasPrice), ETHDecimal).Float64()
+		fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(estimatedFee)), ea.gasPrice), ETHDecimal).Float64()
 		return fee, nil
 	} else {
 		return 0, fmt.Errorf("coin %s is not supported", coin)
@@ -188,12 +195,13 @@ func (ea *EthereumAdapter) Send(ctx context.Context, w Wallet, coin string, amou
 		return "", fmt.Errorf("unable to parse wallet private key: %v", err)
 	}
 
-	gasPrice, err := ea.Client.SuggestGasPrice(ctx)
-	if err != nil {
-		return "", fmt.Errorf("unable to get suggested gasPrice: %v", err)
-	}
-
-	acceleratedGasPrice := gasPrice.Mul(gasPrice, big.NewInt(2))
+	//gasPrice, err := ea.client.SuggestGasPrice(ctx)
+	//if err != nil {
+	//	return "", fmt.Errorf("unable to get suggested gasPrice: %v", err)
+	//}
+	//
+	//acceleratedGasPrice := gasPrice.Mul(gasPrice, big.NewInt(2))
+	//gasPrice := etherToWei(10, GWEIDecimal)
 
 	if coin == "ETH" {
 		publicKeyECDSA, ok := key.Public().(*ecdsa.PublicKey)
@@ -202,15 +210,15 @@ func (ea *EthereumAdapter) Send(ctx context.Context, w Wallet, coin string, amou
 		}
 
 		fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-		nonce, err := ea.Client.PendingNonceAt(ctx, fromAddress)
+		nonce, err := ea.client.PendingNonceAt(ctx, fromAddress)
 		if err != nil {
 			return "", fmt.Errorf("unable to get nonce: %v", err)
 		}
 
 		gasLimit := uint64(21000) // in units
 		toAddress := common.HexToAddress(address)
-		tx := types.NewTransaction(nonce, toAddress, etherToWei(amount, ETHDecimal), gasLimit, acceleratedGasPrice, nil)
-		chainID, err := ea.Client.NetworkID(ctx)
+		tx := types.NewTransaction(nonce, toAddress, etherToWei(amount, ETHDecimal), gasLimit, ea.gasPrice, nil)
+		chainID, err := ea.client.NetworkID(ctx)
 		if err != nil {
 			return "", fmt.Errorf("unable to get ETH networkID: %v", err)
 		}
@@ -220,21 +228,21 @@ func (ea *EthereumAdapter) Send(ctx context.Context, w Wallet, coin string, amou
 			return "", fmt.Errorf("unable to sign transaction: %v", err)
 		}
 
-		err = ea.Client.SendTransaction(ctx, signedTx)
+		err = ea.client.SendTransaction(ctx, signedTx)
 		if err != nil {
 			return "", fmt.Errorf("unable to send transaction: %v", err)
 		}
 
 		return signedTx.Hash().Hex(), nil
 	} else if tokenConf, ok := tokens[coin]; ok {
-		caller, err := eth.NewToken(common.HexToAddress(tokenConf.address), ea.Client)
+		caller, err := eth.NewToken(common.HexToAddress(tokenConf.address), ea.client)
 		if err != nil {
 			return "", fmt.Errorf("unable to bind token contract: %v", err)
 		}
 
 		opts := bind.NewKeyedTransactor(key)
 		opts.Context = ctx
-		opts.GasPrice = acceleratedGasPrice
+		opts.GasPrice = ea.gasPrice
 		tx, err := caller.Transfer(opts, common.HexToAddress(address), etherToWei(amount, tokenConf.decimals))
 		if err != nil {
 			return "", fmt.Errorf("unable to sent transaction: %v", err)
@@ -258,11 +266,12 @@ func (ea *EthereumAdapter) EstimateMultiSendFee(ctx context.Context, w Wallet, c
 	}
 
 	from := crypto.PubkeyToAddress(*publicKeyECDSA)
-	gasPrice, err := ea.Client.SuggestGasPrice(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("unable to get suggested gasPrice: %v", err)
-	}
-	acceleratedGasPrice := gasPrice.Mul(gasPrice, big.NewInt(2))
+	//gasPrice, err := ea.client.SuggestGasPrice(ctx)
+	//if err != nil {
+	//	return 0, fmt.Errorf("unable to get suggested gasPrice: %v", err)
+	//}
+	//acceleratedGasPrice := gasPrice.Mul(gasPrice, big.NewInt(2))
+	//gasPrice := big.NewInt(0)//etherToWei(10, GWEIDecimal)
 
 	if tokenConf, ok := tokens[coin]; !ok && coin != "ETH" {
 		return 0, fmt.Errorf("coin %s is not supported", coin)
@@ -292,13 +301,13 @@ func (ea *EthereumAdapter) EstimateMultiSendFee(ctx context.Context, w Wallet, c
 		}
 
 		to := common.HexToAddress(MultiSendContractAddress)
-		msg := ethereum.CallMsg{From: from, To: &to, GasPrice: acceleratedGasPrice, Value: total, Data: data}
-		estimatedFee, err := ea.Client.EstimateGas(ctx, msg)
+		msg := ethereum.CallMsg{From: from, To: &to, GasPrice: ea.gasPrice, Value: total, Data: data}
+		estimatedFee, err := ea.client.EstimateGas(ctx, msg)
 		if err != nil {
 			return 0, fmt.Errorf("unable to estimate gas price: %v", err)
 		}
 
-		fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(estimatedFee)), acceleratedGasPrice), ETHDecimal).Float64()
+		fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(estimatedFee)), ea.gasPrice), ETHDecimal).Float64()
 		return fee, nil
 	}
 }
@@ -308,18 +317,19 @@ func (ea *EthereumAdapter) MultiSend(ctx context.Context, w Wallet, coin string,
 	if err != nil {
 		return "", fmt.Errorf("unable to parse wallet private key: %v", err)
 	}
-	gasPrice, err := ea.Client.SuggestGasPrice(ctx)
-	if err != nil {
-		return "", fmt.Errorf("unable to get suggested gasPrice: %v", err)
-	}
+	//gasPrice, err := ea.client.SuggestGasPrice(ctx)
+	//if err != nil {
+	//	return "", fmt.Errorf("unable to get suggested gasPrice: %v", err)
+	//}
 
-	acceleratedGasPrice := gasPrice.Mul(gasPrice, big.NewInt(2))
+	//acceleratedGasPrice := gasPrice.Mul(gasPrice, big.NewInt(2))
+	//gasPrice := etherToWei(10, GWEIDecimal)
 
 	if tokenConf, ok := tokens[coin]; !ok && coin != "ETH" {
 		return "", fmt.Errorf("coin %s is not supported", coin)
 	} else {
 		var err error
-		caller, err := eth.NewMultisend(common.HexToAddress(MultiSendContractAddress), ea.Client)
+		caller, err := eth.NewMultisend(common.HexToAddress(MultiSendContractAddress), ea.client)
 		if err != nil {
 			return "", fmt.Errorf("unable to bind token contract: %v", err)
 		}
@@ -340,7 +350,7 @@ func (ea *EthereumAdapter) MultiSend(ctx context.Context, w Wallet, coin string,
 
 		opts := bind.NewKeyedTransactor(key)
 		opts.Context = ctx
-		opts.GasPrice = acceleratedGasPrice
+		opts.GasPrice = ea.gasPrice
 		opts.Value = total
 
 		var tx *types.Transaction
@@ -368,13 +378,13 @@ func (ea *EthereumAdapter) DeployMultiSendContract(ctx context.Context, w Wallet
 	}
 
 	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-	gasPrice, err := ea.Client.SuggestGasPrice(ctx)
+	gasPrice, err := ea.client.SuggestGasPrice(ctx)
 	if err != nil {
 		return "", "", fmt.Errorf("unable to suggest gas price: %v", err)
 	}
 
 	acceleratedGasPrice := gasPrice.Mul(gasPrice, big.NewInt(2))
-	nonce, err := ea.Client.PendingNonceAt(ctx, fromAddress)
+	nonce, err := ea.client.PendingNonceAt(ctx, fromAddress)
 	if err != nil {
 		return "", "", fmt.Errorf("unable to get nonce: %v", err)
 	}
@@ -384,7 +394,7 @@ func (ea *EthereumAdapter) DeployMultiSendContract(ctx context.Context, w Wallet
 	auth.Value = big.NewInt(0)      // in wei
 	auth.GasLimit = uint64(3000000) // in units
 	auth.GasPrice = acceleratedGasPrice
-	address, tx, _, err := eth.DeployMultisend(auth, ea.Client)
+	address, tx, _, err := eth.DeployMultisend(auth, ea.client)
 	if err != nil {
 		return "", "", fmt.Errorf("unable to deploy contract: %v", err)
 	}
@@ -398,7 +408,7 @@ func (ea *EthereumAdapter) ApproveTokenMultisend(ctx context.Context, w Wallet, 
 		return "", fmt.Errorf("unable to parse wallet private key: %v", err)
 	}
 
-	gasPrice, err := ea.Client.SuggestGasPrice(ctx)
+	gasPrice, err := ea.client.SuggestGasPrice(ctx)
 	if err != nil {
 		return "", fmt.Errorf("unable to get suggested gasPrice: %v", err)
 	}
@@ -406,7 +416,7 @@ func (ea *EthereumAdapter) ApproveTokenMultisend(ctx context.Context, w Wallet, 
 	acceleratedGasPrice := gasPrice.Mul(gasPrice, big.NewInt(2))
 
 	if tokenConf, ok := tokens[coin]; ok {
-		caller, err := eth.NewToken(common.HexToAddress(tokenConf.address), ea.Client)
+		caller, err := eth.NewToken(common.HexToAddress(tokenConf.address), ea.client)
 		if err != nil {
 			return "", fmt.Errorf("unable to bind token contract: %v", err)
 		}
@@ -442,14 +452,14 @@ func (ea *EthereumAdapter) ConfigureTransactionContract(
 		return nil, fmt.Errorf("unable to parse wallet private key: %v", err)
 	}
 
-	gasPrice, err := ea.Client.SuggestGasPrice(ctx)
+	gasPrice, err := ea.client.SuggestGasPrice(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get suggested gasPrice: %v", err)
 	}
 
 	acceleratedGasPrice := gasPrice.Mul(gasPrice, big.NewInt(2))
 
-	caller, err := eth.NewTransaction(common.HexToAddress(MultiSendContractAddress), ea.Client)
+	caller, err := eth.NewTransaction(common.HexToAddress(MultiSendContractAddress), ea.client)
 	if err != nil {
 		return nil, fmt.Errorf("unable to bind token contract: %v", err)
 	}
