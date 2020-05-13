@@ -78,6 +78,10 @@ func (ea *EthereumAdapter) getWalletKey(privateKey string) (*ecdsa.PrivateKey, e
 	}
 }
 
+func (ea *EthereumAdapter) IsValidAddress(_ context.Context, address string) bool {
+	return common.IsHexAddress(address)
+}
+
 func (ea *EthereumAdapter) FindWallet(_ context.Context, privateKey string) (Wallet, error) {
 	emptyWallet := Wallet{"", "", ""}
 	key, err := ea.getWalletKey(privateKey)

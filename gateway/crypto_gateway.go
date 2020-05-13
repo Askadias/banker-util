@@ -6,6 +6,7 @@ import (
 )
 
 type Adapter interface {
+	IsValidAddress(ctx context.Context, address string) bool
 	NewWallet(ctx context.Context) (Wallet, error)
 	FindWallet(ctx context.Context, privateKey string) (Wallet, error)
 	GetBalance(ctx context.Context, address string) (map[string]float64, error)
@@ -21,6 +22,14 @@ type CryptoHub struct {
 
 func NewCryptoHub(blockChains map[string]Adapter) *CryptoHub {
 	return &CryptoHub{blockChains}
+}
+
+func (ch *CryptoHub) IsValidAddress(ctx context.Context, baseCoin string, address string) bool {
+	if adapter, ok := ch.BlockChains[baseCoin]; ok {
+		return adapter.IsValidAddress(ctx, address)
+	} else {
+		return false
+	}
 }
 
 func (ch *CryptoHub) MustNewWallet(ctx context.Context, baseCoin string) Wallet {

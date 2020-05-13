@@ -38,6 +38,10 @@ func (ma *MinterAdapter) getWallet(mnemonic string) (*wallet.Wallet, error) {
 	return mntWallet, nil
 }
 
+func (ma *MinterAdapter) IsValidAddress(_ context.Context, address string) bool {
+	return wallet.IsValidAddress(address)
+}
+
 func (ma *MinterAdapter) FindWallet(ctx context.Context, privateKey string) (Wallet, error) {
 	emptyWallet := Wallet{"", "", ""}
 	mntWallet, err := ma.getWallet(privateKey)
