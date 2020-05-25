@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/miguelmota/go-ethereum-hdwallet"
 	"github.com/tyler-smith/go-bip39"
 	"math"
@@ -39,9 +40,12 @@ var (
 )
 
 type EthereumAdapter struct {
-	baseCoin string
-	client   *ethclient.Client
-	gasPrice *big.Int
+	baseCoin              string
+	client                *ethclient.Client
+	gasPrice              *big.Int
+	blockSubscription     ethereum.Subscription
+	multisendSubscription ethereum.Subscription
+	tokenSubscriptions    map[string]ethereum.Subscription
 }
 
 func NewEthereumAdapter(ethereumClient *ethclient.Client, gasPriceGwei float64) *EthereumAdapter {
@@ -50,6 +54,17 @@ func NewEthereumAdapter(ethereumClient *ethclient.Client, gasPriceGwei float64) 
 		client:   ethereumClient,
 		gasPrice: etherToWei(gasPriceGwei, GWEIDecimal),
 	}
+}
+
+func (ea *EthereumAdapter) getGasPrice(ctx context.Context) *big.Int {
+	if ea.gasPrice != nil && ea.gasPrice.Cmp(big.NewInt(0)) > 0 {
+		return ea.gasPrice
+	}
+	gasPrice, err := ea.client.SuggestGasPrice(ctx)
+	if err != nil {
+		return etherToWei(10, GWEIDecimal)
+	}
+	return gasPrice
 }
 
 func (ea *EthereumAdapter) resolveMnemonic(mnemonic string) (*hdwallet.Wallet, accounts.Account, error) {
@@ -158,13 +173,13 @@ func (ea *EthereumAdapter) EstimateSendFee(ctx context.Context, w Wallet, coin s
 
 	if coin == "ETH" {
 		to := common.HexToAddress(address)
-		msg := ethereum.CallMsg{From: from, To: &to, GasPrice: ea.gasPrice, Value: etherToWei(amount, ETHDecimal), Data: nil}
+		msg := ethereum.CallMsg{From: from, To: &to, GasPrice: ea.getGasPrice(ctx), Value: etherToWei(amount, ETHDecimal), Data: nil}
 		estimatedFee, err := ea.client.EstimateGas(ctx, msg)
 		if err != nil {
 			return 0, fmt.Errorf("unable to estimate gas price: %v", err)
 		}
 
-		fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(estimatedFee)), ea.gasPrice), ETHDecimal).Float64()
+		fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(estimatedFee)), ea.getGasPrice(ctx)), ETHDecimal).Float64()
 		return fee, nil
 	} else if tokenConf, ok := tokens[coin]; ok {
 		data, err := eth.PackTransferData(common.HexToAddress(address), etherToWei(amount, tokenConf.decimals))
@@ -173,13 +188,13 @@ func (ea *EthereumAdapter) EstimateSendFee(ctx context.Context, w Wallet, coin s
 		}
 
 		to := common.HexToAddress(tokenConf.address)
-		msg := ethereum.CallMsg{From: from, To: &to, GasPrice: ea.gasPrice, Value: big.NewInt(0), Data: data}
+		msg := ethereum.CallMsg{From: from, To: &to, GasPrice: ea.getGasPrice(ctx), Value: big.NewInt(0), Data: data}
 		estimatedFee, err := ea.client.EstimateGas(ctx, msg)
 		if err != nil {
 			return 0, fmt.Errorf("unable to estimate gas price: %v", err)
 		}
 
-		fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(estimatedFee)), ea.gasPrice), ETHDecimal).Float64()
+		fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(estimatedFee)), ea.getGasPrice(ctx)), ETHDecimal).Float64()
 		return fee, nil
 	} else {
 		return 0, fmt.Errorf("coin %s is not supported", coin)
@@ -206,7 +221,7 @@ func (ea *EthereumAdapter) Send(ctx context.Context, w Wallet, coin string, amou
 
 		gasLimit := uint64(21000) // in units
 		toAddress := common.HexToAddress(address)
-		tx := types.NewTransaction(nonce, toAddress, etherToWei(amount, ETHDecimal), gasLimit, ea.gasPrice, nil)
+		tx := types.NewTransaction(nonce, toAddress, etherToWei(amount, ETHDecimal), gasLimit, ea.getGasPrice(ctx), nil)
 		chainID, err := ea.client.NetworkID(ctx)
 		if err != nil {
 			return "", fmt.Errorf("unable to get ETH networkID: %v", err)
@@ -231,7 +246,7 @@ func (ea *EthereumAdapter) Send(ctx context.Context, w Wallet, coin string, amou
 
 		opts := bind.NewKeyedTransactor(key)
 		opts.Context = ctx
-		opts.GasPrice = ea.gasPrice
+		opts.GasPrice = ea.getGasPrice(ctx)
 		tx, err := caller.Transfer(opts, common.HexToAddress(address), etherToWei(amount, tokenConf.decimals))
 		if err != nil {
 			return "", fmt.Errorf("unable to sent transaction: %v", err)
@@ -284,13 +299,13 @@ func (ea *EthereumAdapter) EstimateMultiSendFee(ctx context.Context, w Wallet, c
 		}
 
 		to := common.HexToAddress(MultiSendContractAddress)
-		msg := ethereum.CallMsg{From: from, To: &to, GasPrice: ea.gasPrice, Value: total, Data: data}
+		msg := ethereum.CallMsg{From: from, To: &to, GasPrice: ea.getGasPrice(ctx), Value: total, Data: data}
 		estimatedFee, err := ea.client.EstimateGas(ctx, msg)
 		if err != nil {
 			return 0, fmt.Errorf("unable to estimate gas price: %v", err)
 		}
 
-		fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(estimatedFee)), ea.gasPrice), ETHDecimal).Float64()
+		fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(estimatedFee)), ea.getGasPrice(ctx)), ETHDecimal).Float64()
 		return fee, nil
 	}
 }
@@ -326,7 +341,7 @@ func (ea *EthereumAdapter) MultiSend(ctx context.Context, w Wallet, coin string,
 
 		opts := bind.NewKeyedTransactor(key)
 		opts.Context = ctx
-		opts.GasPrice = ea.gasPrice
+		opts.GasPrice = ea.getGasPrice(ctx)
 		opts.Value = total
 
 		var tx *types.Transaction
@@ -363,7 +378,7 @@ func (ea *EthereumAdapter) DeployMultiSendContract(ctx context.Context, w Wallet
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0)      // in wei
 	auth.GasLimit = uint64(3000000) // in units
-	auth.GasPrice = ea.gasPrice
+	auth.GasPrice = ea.getGasPrice(ctx)
 	address, tx, _, err := eth.DeployMultisend(auth, ea.client)
 	if err != nil {
 		return "", "", fmt.Errorf("unable to deploy contract: %v", err)
@@ -386,7 +401,7 @@ func (ea *EthereumAdapter) ApproveTokenMultisend(ctx context.Context, w Wallet, 
 
 		opts := bind.NewKeyedTransactor(key)
 		opts.Context = ctx
-		opts.GasPrice = ea.gasPrice
+		opts.GasPrice = ea.getGasPrice(ctx)
 
 		fmt.Println("MaxUint256: " + MaxUint256.String())
 		tx, err := caller.Approve(opts, common.HexToAddress(MultiSendContractAddress), MaxUint256)
@@ -422,7 +437,7 @@ func (ea *EthereumAdapter) ConfigureTransactionContract(
 
 	opts := bind.NewKeyedTransactor(key)
 	opts.Context = ctx
-	opts.GasPrice = ea.gasPrice
+	opts.GasPrice = ea.getGasPrice(ctx)
 
 	if len(partnersPerc) != len(partnersWallets) {
 		return nil, fmt.Errorf("number of partner wallets should be equal to number of their percentages")
@@ -459,6 +474,143 @@ func (ea *EthereumAdapter) ConfigureTransactionContract(
 		tx4.Hash().Hex(),
 		tx5.Hash().Hex(),
 	}, nil
+}
+
+func (ea *EthereumAdapter) Subscribe(ctx context.Context, consumer EventConsumer) error {
+	headers := make(chan *types.Header)
+	var err error
+	ea.blockSubscription, err = ea.client.SubscribeNewHead(ctx, headers)
+	if err != nil {
+		return fmt.Errorf("unable to subscribe to block events: %v", err)
+	}
+	multisendLogs := make(chan *eth.MultisendTransfer)
+	caller, err := eth.NewMultisend(common.HexToAddress(MultiSendContractAddress), ea.client)
+	if err != nil {
+		return fmt.Errorf("unable to bind multisend contract: %v", err)
+	}
+	ea.multisendSubscription, err = caller.WatchTransfer(nil, multisendLogs)
+	if err != nil {
+		ea.blockSubscription.Unsubscribe()
+		return err
+	}
+
+	go ea.handleBlockEvents(consumer, headers)
+	go ea.handleMultisendEvents(consumer, multisendLogs)
+
+	for token, conf := range tokens {
+		tokenLogs := make(chan *eth.TokenTransfer)
+		caller, err := eth.NewToken(common.HexToAddress(conf.address), ea.client)
+		if err != nil {
+			return fmt.Errorf("unable to bind multisend contract: %v", err)
+		}
+		ea.tokenSubscriptions = make(map[string]ethereum.Subscription)
+
+		sub, err := caller.WatchTransfer(nil, tokenLogs, nil, nil)
+		if err != nil {
+			ea.blockSubscription.Unsubscribe()
+			return err
+		}
+		ea.tokenSubscriptions[token] = sub
+		go ea.handleTokenEvents(sub, consumer, token, conf.decimals, tokenLogs)
+	}
+	return nil
+}
+
+func (ea *EthereumAdapter) handleBlockEvents(consumer EventConsumer, headers chan *types.Header) error {
+	type contractConfig struct {
+		coin     string
+		decimals int
+	}
+	var tokenContracts = map[string]contractConfig{}
+	for token, conf := range tokens {
+		tokenContracts[conf.address] = contractConfig{coin: token, decimals: conf.decimals}
+	}
+	signer := types.MakeSigner(params.MainnetChainConfig, big.NewInt(4989292))
+	for {
+		select {
+		case err := <-ea.blockSubscription.Err():
+			consumer.Consume(Event{Error: err})
+		case header := <-headers:
+			block, err := ea.client.BlockByHash(context.Background(), header.Hash())
+			if err != nil {
+				consumer.Consume(Event{Error: err})
+			}
+			if block != nil && block.Transactions() != nil {
+				for _, tx := range block.Transactions() {
+					if tx != nil && tx.To() != nil && tx.Value() != nil && tx.GasPrice() != nil {
+						to := tx.To().Hex()
+						if _, ok := tokenContracts[to]; !ok && to != MultiSendContractAddress {
+							fromAddr, _ := signer.Sender(tx)
+							amount, _ := weiToEther(tx.Value(), ETHDecimal).Float64()
+							fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(tx.Gas())), tx.GasPrice()), ETHDecimal).Float64()
+							consumer.Consume(Event{
+								Type:    TypeSend,
+								Amount:  amount,
+								Coin:    "ETH",
+								FeeCoin: "ETH",
+								Fee:     fee,
+								Hash:    tx.Hash().Hex(),
+								To:      to,
+								From:    fromAddr.Hex(),
+							})
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func (ea *EthereumAdapter) handleMultisendEvents(consumer EventConsumer, sink chan *eth.MultisendTransfer) {
+	for {
+		select {
+		case err := <-ea.multisendSubscription.Err():
+			consumer.Consume(Event{Error: err})
+		case vLog := <-sink:
+			consumer.Consume(Event{
+				Type:    TypeMultisend,
+				To:      vLog.Recipient.Hex(),
+				FeeCoin: "ETH",
+				From:    vLog.Raw.Address.Hex(),
+				Hash:    vLog.Raw.TxHash.Hex(),
+			})
+		}
+	}
+}
+
+func (ea *EthereumAdapter) handleTokenEvents(
+	sub ethereum.Subscription,
+	consumer EventConsumer,
+	token string,
+	decimals int,
+	sink chan *eth.TokenTransfer,
+) {
+	for {
+		select {
+		case err := <-sub.Err():
+			consumer.Consume(Event{Error: err})
+		case vLog := <-sink:
+			amount, _ := weiToEther(vLog.Value, decimals).Float64()
+			consumer.Consume(Event{
+				Type:    TypeSend,
+				Coin:    token,
+				FeeCoin: "ETH",
+				Amount:  amount,
+				To:      vLog.To.Hex(),
+				From:    vLog.From.Hex(),
+				Hash:    vLog.Raw.TxHash.Hex(),
+			})
+		}
+	}
+}
+
+func (ea *EthereumAdapter) Unsubscribe() {
+	if ea.blockSubscription != nil {
+		ea.blockSubscription.Unsubscribe()
+	}
+	if ea.multisendSubscription != nil {
+		ea.multisendSubscription.Unsubscribe()
+	}
 }
 
 func weiToEther(wei *big.Int, decimal int) *big.Float {

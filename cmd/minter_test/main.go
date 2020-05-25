@@ -12,7 +12,8 @@ import (
 
 func main() {
 	minterClient := api.NewApiWithClient(os.Getenv("MINTER_HOST"), resty.New())
-	minter := gateway.NewMinterAdapter(minterClient)
+	minterPollingClient := api.NewApiWithClient(os.Getenv("MINTER_POLLING_HOST"), resty.New())
+	minter := gateway.NewMinterAdapter(minterClient, minterPollingClient, 2 * time.Second)
 	hub := gateway.NewCryptoHub(map[string]gateway.Adapter{
 		"BIP": minter,
 	})
@@ -21,10 +22,19 @@ func main() {
 	sourceWallet := hub.MustFindWallet(ctx, "BIP", os.Getenv("BIP_PRIVATE_KEY"))
 	targetWallet := hub.MustFindWallet(ctx, "BIP", os.Getenv("BIP_PRIVATE_KEY2"))
 
+	_ = minter.Subscribe(ctx, gateway.EventConsumerFunc(func(event gateway.Event) {
+		if event.From == sourceWallet.Address ||
+			event.To == sourceWallet.Address ||
+			event.From == targetWallet.Address ||
+			event.To == targetWallet.Address {
+			fmt.Println(event)
+		}
+	}))
+
 	// ==============================================================================================
 	// CREATE WALLET
 	//targetWallet := hub.MustNewWallet(ctx, "BIP")
-	fmt.Printf("New Wallet: %s - %s\n", targetWallet.Address, targetWallet.PrivateKey)
+	//fmt.Printf("New Wallet: %s - %s\n", targetWallet.Address, targetWallet.PrivateKey)
 	sourceBalance := hub.MustGetBalance(ctx, "BIP", sourceWallet.Address)
 	targetBalance := hub.MustGetBalance(ctx, "BIP", targetWallet.Address)
 	fmt.Printf("Balance: %s = %v\n", sourceWallet.Address, sourceBalance)
@@ -65,4 +75,5 @@ func main() {
 	fmt.Printf("Estimation: %s -> %s %0.9f %0.9f BIP\n", targetWallet.Address, sourceWallet.Address, estimatedBIP, targetBalance["BIP"]-estimatedONLY1)
 	sendHashBIP := hub.MustSend(ctx, "BIP", targetWallet, "BIP", targetBalance["BIP"]-estimatedBIP-estimatedONLY1, sourceWallet.Address)
 	fmt.Printf("Transaction Send BIP: https://minterscan.net/tx/%s\n", sendHashBIP)
+	minter.Unsubscribe()
 }

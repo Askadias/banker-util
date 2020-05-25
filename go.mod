@@ -1,7 +1,7 @@
 module github.com/Askadias/banker-util
 
 require (
-	github.com/MinterTeam/minter-go-sdk v1.0.8
+	github.com/MinterTeam/minter-go-sdk v1.1.6
 	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20200331225509-2cc472e8fbd6 // indirect
 	github.com/btcsuite/btcd v0.20.1-beta

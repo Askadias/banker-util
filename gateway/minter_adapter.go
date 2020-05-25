@@ -9,6 +9,7 @@ import (
 	"github.com/MinterTeam/minter-go-sdk/wallet"
 	"math"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -18,12 +19,16 @@ const (
 )
 
 type MinterAdapter struct {
-	baseCoin string
-	client   *api.Api
+	baseCoin        string
+	client          *api.Api
+	pollingClient   *api.Api
+	ticker          *time.Ticker
+	pollingDuration time.Duration
+	lastBlockHeight int
 }
 
-func NewMinterAdapter(minterClient *api.Api) *MinterAdapter {
-	return &MinterAdapter{baseCoin: "BIP", client: minterClient}
+func NewMinterAdapter(minterClient *api.Api, minterPollingClient *api.Api, pollingDuration time.Duration) *MinterAdapter {
+	return &MinterAdapter{baseCoin: "BIP", client: minterClient, pollingClient: minterPollingClient, pollingDuration: pollingDuration}
 }
 
 func (ma *MinterAdapter) getWallet(mnemonic string) (*wallet.Wallet, error) {
@@ -118,35 +123,6 @@ func (ma *MinterAdapter) SellAll(ctx context.Context, w Wallet, coin string) (st
 	return res.Hash, nil
 }
 
-func (ma *MinterAdapter) prepareSendTx(w Wallet, coin string, amount float64, address string) (transaction.SignedTransaction, uint64, error) {
-	data, _ := transaction.NewSendData().
-		SetCoin(coin).
-		SetValue(bipToCoin(amount)).
-		SetTo(address)
-
-	newTransaction, err := transaction.NewBuilder(transaction.MainNetChainID).NewTransaction(data)
-	if err != nil {
-		return nil, 0, fmt.Errorf("unable to prepare transaction: %v", err)
-	}
-	mntWallet, err := ma.getWallet(w.PrivateKey)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	nonce, err := ma.client.Nonce(mntWallet.Address())
-	if err != nil {
-		return nil, 0, fmt.Errorf("unable to generate nonce: %v", err)
-	}
-
-	signedTransaction, err := newTransaction.
-		SetNonce(nonce).
-		SetGasCoin("BIP").
-		SetGasPrice(1).
-		SetSignatureType(transaction.SignatureTypeSingle).
-		Sign(mntWallet.PrivateKey())
-	return signedTransaction, nonce, nil
-}
-
 func (ma *MinterAdapter) EstimateSendFee(ctx context.Context, w Wallet, coin string, amount float64, address string) (float64, error) {
 	signedTransaction, _, err := ma.prepareSendTx(w, coin, amount, address)
 	if err != nil {
@@ -190,13 +166,11 @@ func (ma *MinterAdapter) Send(ctx context.Context, w Wallet, coin string, amount
 	}
 }
 
-func (ma *MinterAdapter) prepareMultiSendTx(w Wallet, coin string, addresses []string, amounts []float64) (transaction.SignedTransaction, uint64, error) {
-	data := transaction.NewMultisendData()
-	for i := 0; i < len(addresses); i++ {
-		data = data.AddItem(*transaction.NewMultisendDataItem().
-			SetCoin(coin).SetValue(bipToCoin(amounts[i])).
-			MustSetTo(addresses[i]))
-	}
+func (ma *MinterAdapter) prepareSendTx(w Wallet, coin string, amount float64, address string) (transaction.SignedTransaction, uint64, error) {
+	data, _ := transaction.NewSendData().
+		SetCoin(coin).
+		SetValue(bipToCoin(amount)).
+		SetTo(address)
 
 	newTransaction, err := transaction.NewBuilder(transaction.MainNetChainID).NewTransaction(data)
 	if err != nil {
@@ -219,6 +193,19 @@ func (ma *MinterAdapter) prepareMultiSendTx(w Wallet, coin string, addresses []s
 		SetSignatureType(transaction.SignatureTypeSingle).
 		Sign(mntWallet.PrivateKey())
 	return signedTransaction, nonce, nil
+}
+
+func (ma *MinterAdapter) EstimateMultiSendFee(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (float64, error) {
+	signedTransaction, _, err := ma.prepareMultiSendTx(w, coin, addresses, amounts)
+	if err != nil {
+		return 0, fmt.Errorf("unable to create transaction to multisend coin %s to %v: %v", coin, amounts, err)
+	}
+	res, err := ma.client.EstimateTxCommission(signedTransaction)
+	if err != nil {
+		return 0, fmt.Errorf("unable to estimate multisend transaction of %s to %v: %v", coin, amounts, err)
+	}
+	fee, _ := pipToBIP(res.Commission).Float64()
+	return fee, nil
 }
 
 func (ma *MinterAdapter) MultiSend(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (string, error) {
@@ -251,17 +238,118 @@ func (ma *MinterAdapter) MultiSend(ctx context.Context, w Wallet, coin string, a
 	}
 }
 
-func (ma *MinterAdapter) EstimateMultiSendFee(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (float64, error) {
-	signedTransaction, _, err := ma.prepareMultiSendTx(w, coin, addresses, amounts)
-	if err != nil {
-		return 0, fmt.Errorf("unable to create transaction to multisend coin %s to %v: %v", coin, amounts, err)
+func (ma *MinterAdapter) prepareMultiSendTx(w Wallet, coin string, addresses []string, amounts []float64) (transaction.SignedTransaction, uint64, error) {
+	data := transaction.NewMultisendData()
+	for i := 0; i < len(addresses); i++ {
+		data = data.AddItem(*transaction.NewMultisendDataItem().
+			SetCoin(coin).SetValue(bipToCoin(amounts[i])).
+			MustSetTo(addresses[i]))
 	}
-	res, err := ma.client.EstimateTxCommission(signedTransaction)
+
+	newTransaction, err := transaction.NewBuilder(transaction.MainNetChainID).NewTransaction(data)
 	if err != nil {
-		return 0, fmt.Errorf("unable to estimate multisend transaction of %s to %v: %v", coin, amounts, err)
+		return nil, 0, fmt.Errorf("unable to prepare transaction: %v", err)
 	}
-	fee, _ := pipToBIP(res.Commission).Float64()
-	return fee, nil
+	mntWallet, err := ma.getWallet(w.PrivateKey)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	nonce, err := ma.client.Nonce(mntWallet.Address())
+	if err != nil {
+		return nil, 0, fmt.Errorf("unable to generate nonce: %v", err)
+	}
+
+	signedTransaction, err := newTransaction.
+		SetNonce(nonce).
+		SetGasCoin("BIP").
+		SetGasPrice(1).
+		SetSignatureType(transaction.SignatureTypeSingle).
+		Sign(mntWallet.PrivateKey())
+	return signedTransaction, nonce, nil
+}
+
+func (ma *MinterAdapter) Subscribe(ctx context.Context, consumer EventConsumer) error {
+	ma.Unsubscribe()
+	go func() {
+		ma.ticker = time.NewTicker(ma.pollingDuration)
+		for range ma.ticker.C {
+			st, _ := ma.pollingClient.Status()
+			newLastBlockHeight, _ := strconv.ParseInt(st.LatestBlockHeight, 10, 32)
+			startBlock := ma.lastBlockHeight + 1
+			if ma.lastBlockHeight == 0 {
+				startBlock = int(newLastBlockHeight)
+			}
+			if int(newLastBlockHeight) > ma.lastBlockHeight {
+				for blockHeight := startBlock; blockHeight <= int(newLastBlockHeight); blockHeight++ {
+					block, _ := ma.pollingClient.Block(blockHeight)
+					if block != nil && block.Transactions != nil {
+						for _, tx := range block.Transactions {
+							bigFee := new(big.Int)
+							bigFee, _ = bigFee.SetString(tx.Gas, 10)
+							fee, _ := pipToBIP(big.NewInt(0).Mul(bigFee, big.NewInt(1000000000000000)).String()).Float64()
+							fee = fee * float64(tx.GasPrice)
+							if tx.Type == int(transaction.TypeMultisend) {
+								msend := &api.MultisendData{}
+								err := tx.Data.FillStruct(msend)
+								if err != nil {
+									consumer.Consume(Event{Error: err})
+								}
+								for _, item := range msend.List {
+									amount, _ := pipToBIP(item.Value).Float64()
+									if err != nil {
+										consumer.Consume(Event{Error: err})
+									}
+									consumer.Consume(Event{
+										Hash:   tx.Hash,
+										From:   tx.From,
+										To:     item.To,
+										Coin:   item.Coin,
+										Amount: amount,
+										Type:   TypeMultisend,
+										FeeCoin: tx.GasCoin,
+										Fee:    fee,
+									})
+								}
+							} else if tx.Type == int(transaction.TypeSend) {
+								send := &api.SendData{}
+								err := tx.Data.FillStruct(send)
+								if err != nil {
+									consumer.Consume(Event{Error: err})
+								}
+								amount, _ := pipToBIP(send.Value).Float64()
+								if err != nil {
+									consumer.Consume(Event{Error: err})
+								}
+								consumer.Consume(Event{
+									Hash:    tx.Hash,
+									From:    tx.From,
+									To:      send.To,
+									Coin:    send.Coin,
+									Amount:  amount,
+									Type:    TypeSend,
+									FeeCoin: tx.GasCoin,
+									Fee:     fee,
+								})
+							} else {
+								continue
+							}
+						}
+						lastBlockHeight, _ := strconv.ParseInt(block.Height, 10, 32)
+						ma.lastBlockHeight = int(lastBlockHeight)
+					}
+				}
+			}
+		}
+	}()
+	return nil
+}
+
+func (ma *MinterAdapter) Unsubscribe() {
+	if ma.ticker != nil {
+		ma.ticker.Stop()
+		ma.ticker = nil
+	}
 }
 
 func pipToBIP(pip string) *big.Float {
