@@ -14,6 +14,8 @@ type Adapter interface {
 	Send(ctx context.Context, w Wallet, coin string, amount float64, address string) (string, error)
 	EstimateMultiSendFee(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (float64, error)
 	MultiSend(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (string, error)
+	Subscribe(ctx context.Context, consumer EventConsumer) error
+	Unsubscribe()
 }
 
 type CryptoHub struct {
@@ -132,7 +134,7 @@ func (ch *CryptoHub) MultiSend(ctx context.Context, baseCoin string, w Wallet, c
 }
 
 func (ch *CryptoHub) MustEstimateMultiSendFee(ctx context.Context, baseCoin string, w Wallet, coin string, addresses []string, amounts []float64) float64 {
-	estimation, err := ch.EstimateMultiSendFee(ctx, baseCoin, w, coin,  addresses, amounts)
+	estimation, err := ch.EstimateMultiSendFee(ctx, baseCoin, w, coin, addresses, amounts)
 	if err != nil {
 		panic(err)
 	}
@@ -148,4 +150,39 @@ func (ch *CryptoHub) EstimateMultiSendFee(ctx context.Context, baseCoin string, 
 	} else {
 		return 0, fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
 	}
+}
+
+func (ch *CryptoHub) SubscribeAll(ctx context.Context, consumer EventConsumer) error {
+	for baseCoin, adapter := range ch.BlockChains {
+		if err := adapter.Subscribe(ctx, consumer); err != nil {
+			return fmt.Errorf("unable to subscribe to %s blockchain", baseCoin)
+		}
+	}
+	return nil
+}
+
+func (ch *CryptoHub) UnsubscribeAll() {
+	for _, adapter := range ch.BlockChains {
+		adapter.Unsubscribe()
+	}
+}
+
+func (ch *CryptoHub) Subscribe(ctx context.Context, baseCoin string, consumer EventConsumer) error {
+	if adapter, ok := ch.BlockChains[baseCoin]; ok {
+		if err := adapter.Subscribe(ctx, consumer); err != nil {
+			return fmt.Errorf("unable to subscribe to %s blockchain", baseCoin)
+		}
+	} else {
+		return fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
+	}
+	return nil
+}
+
+func (ch *CryptoHub) Unsubscribe(_ context.Context, baseCoin string) error {
+	if adapter, ok := ch.BlockChains[baseCoin]; ok {
+		adapter.Unsubscribe()
+	} else {
+		return fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
+	}
+	return nil
 }
