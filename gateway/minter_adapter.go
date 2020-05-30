@@ -25,6 +25,7 @@ type MinterAdapter struct {
 	ticker          *time.Ticker
 	pollingDuration time.Duration
 	lastBlockHeight int
+	blockListeners  []func(lastBlockHeight int, transactionsCount int)
 }
 
 func NewMinterAdapter(minterClient *api.Api, minterPollingClient *api.Api, pollingDuration time.Duration) *MinterAdapter {
@@ -301,14 +302,14 @@ func (ma *MinterAdapter) Subscribe(ctx context.Context, consumer EventConsumer) 
 										consumer.Consume(Event{Error: err})
 									}
 									consumer.Consume(Event{
-										Hash:   tx.Hash,
-										From:   tx.From,
-										To:     item.To,
-										Coin:   item.Coin,
-										Amount: amount,
-										Type:   TypeMultisend,
+										Hash:    tx.Hash,
+										From:    tx.From,
+										To:      item.To,
+										Coin:    item.Coin,
+										Amount:  amount,
+										Type:    TypeMultisend,
 										FeeCoin: tx.GasCoin,
-										Fee:    fee,
+										Fee:     fee,
 									})
 								}
 							} else if tx.Type == int(transaction.TypeSend) {
@@ -337,6 +338,9 @@ func (ma *MinterAdapter) Subscribe(ctx context.Context, consumer EventConsumer) 
 						}
 						lastBlockHeight, _ := strconv.ParseInt(block.Height, 10, 32)
 						ma.lastBlockHeight = int(lastBlockHeight)
+						for _, listener := range ma.blockListeners {
+							listener(ma.lastBlockHeight, len(block.Transactions))
+						}
 					}
 				}
 			}
@@ -358,6 +362,10 @@ func (ma *MinterAdapter) GetLastBlockHeight() int {
 
 func (ma *MinterAdapter) SetLastBlockHeight(lastBlockHeight int) {
 	ma.lastBlockHeight = lastBlockHeight
+}
+
+func (ma *MinterAdapter) AddBlockListener(listener func(lastBlockHeight int, transactionsCount int)) {
+	ma.blockListeners = append(ma.blockListeners, listener)
 }
 
 func pipToBIP(pip string) *big.Float {
