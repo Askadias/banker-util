@@ -303,16 +303,19 @@ func (ma *MinterAdapter) Subscribe(ctx context.Context, consumer EventConsumer) 
 										consumer.Consume(Event{Error: err})
 									}
 									items = append(items, SendEvent{
-										Hash:    tx.Hash,
-										From:    tx.From,
-										To:      item.To,
-										Coin:    item.Coin,
-										Amount:  amount,
-										FeeCoin: tx.GasCoin,
-										Fee:     fee,
+										To:     item.To,
+										Coin:   item.Coin,
+										Amount: amount,
 									})
 								}
-								consumer.Consume(Event{Type: TypeMultisend, Items: items})
+								consumer.Consume(Event{
+									Type:    TypeMultisend,
+									Hash:    tx.Hash,
+									From:    tx.From,
+									FeeCoin: tx.GasCoin,
+									Fee:     fee,
+									Items:   items,
+								})
 							} else if tx.Type == int(transaction.TypeSend) {
 								send := &api.SendData{}
 								err := tx.Data.FillStruct(send)
@@ -323,15 +326,16 @@ func (ma *MinterAdapter) Subscribe(ctx context.Context, consumer EventConsumer) 
 								if err != nil {
 									consumer.Consume(Event{Error: err})
 								}
-								consumer.Consume(Event{Type: TypeSend, SendEvent: SendEvent{
-									Hash:   tx.Hash,
-									From:   tx.From,
-									To:     send.To,
-									Coin:   send.Coin,
-									Amount: amount,
+								consumer.Consume(Event{Type: TypeSend,
+									Hash:    tx.Hash,
+									From:    tx.From,
 									FeeCoin: tx.GasCoin,
 									Fee:     fee,
-								}})
+									SendEvent: SendEvent{
+										To:     send.To,
+										Coin:   send.Coin,
+										Amount: amount,
+									}})
 							} else {
 								continue
 							}

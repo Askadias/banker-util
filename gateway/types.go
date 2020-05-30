@@ -15,16 +15,16 @@ const (
 
 type SendEvent struct {
 	Amount  float64 `json:"amount,omitempty"`
-	Fee     float64 `json:"fee,omitempty"`
-	Hash    string  `json:"hash,omitempty"`
 	Coin    string  `json:"coin,omitempty"`
-	FeeCoin string  `json:"feeCoin,omitempty"`
-	From    string  `json:"from,omitempty"`
 	To      string  `json:"to,omitempty"`
 }
 
 type Event struct {
 	SendEvent
+	Hash    string  `json:"hash,omitempty"`
+	From    string  `json:"from,omitempty"`
+	Fee     float64 `json:"fee,omitempty"`
+	FeeCoin string  `json:"feeCoin,omitempty"`
 	Type  EventType   `json:"type,omitempty"`
 	Items []SendEvent `json:"items,omitempty"`
 	Error error       `json:"error,omitempty"`

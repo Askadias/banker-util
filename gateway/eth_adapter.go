@@ -539,15 +539,18 @@ func (ea *EthereumAdapter) handleBlockEvents(consumer EventConsumer, headers cha
 							consumer.Consume(event)
 						} else {
 							amount, _ := weiToEther(tx.Value(), ETHDecimal).Float64()
-							consumer.Consume(Event{Type: TypeSend, SendEvent: SendEvent{
-								Amount:  amount,
-								Coin:    "ETH",
+							consumer.Consume(Event{
+								Type:    TypeSend,
 								FeeCoin: "ETH",
 								Fee:     fee,
 								Hash:    strings.ToLower(tx.Hash().Hex()),
-								To:      strings.ToLower(to),
 								From:    strings.ToLower(fromAddr.Hex()),
-							}})
+								SendEvent: SendEvent{
+									Amount: amount,
+									Coin:   "ETH",
+									To:     strings.ToLower(to),
+								},
+							})
 						}
 					}
 				}
@@ -564,15 +567,18 @@ func (ea *EthereumAdapter) parseTokenSendEvent(tx *types.Transaction, fromAddr s
 	}
 
 	amount, _ := weiToEther(transferData.Amount, tokenConf.decimals).Float64()
-	return Event{Type: TypeSend, SendEvent: SendEvent{
-		Amount:  amount,
-		Coin:    tokenConf.coin,
+	return Event{
+		Type:    TypeSend,
 		FeeCoin: "ETH",
 		Fee:     fee,
 		Hash:    strings.ToLower(tx.Hash().Hex()),
-		To:      strings.ToLower(transferData.Recipient.Hex()),
 		From:    strings.ToLower(fromAddr),
-	}}, nil
+		SendEvent: SendEvent{
+			Amount: amount,
+			Coin:   tokenConf.coin,
+			To:     strings.ToLower(transferData.Recipient.Hex()),
+		},
+	}, nil
 }
 
 func (ea *EthereumAdapter) parseMultisendEvent(tx *types.Transaction, fromAddr string, tokenContracts map[string]contractConfig) (Event, error) {
@@ -617,16 +623,19 @@ func (ea *EthereumAdapter) parseMultisendEvent(tx *types.Transaction, fromAddr s
 	for i, address := range addresses {
 		amount, _ := weiToEther(amounts[i], decimals).Float64()
 		items = append(items, SendEvent{
-			Amount:  amount,
-			Coin:    coin,
-			FeeCoin: "ETH",
-			Fee:     fee,
-			Hash:    strings.ToLower(tx.Hash().Hex()),
-			To:      strings.ToLower(address.Hex()),
-			From:    strings.ToLower(fromAddr),
+			Amount: amount,
+			Coin:   coin,
+			To:     strings.ToLower(address.Hex()),
 		})
 	}
-	return Event{Type: TypeSend, Items: items}, nil
+	return Event{
+		Type:    TypeSend,
+		FeeCoin: "ETH",
+		Fee:     fee,
+		Hash:    strings.ToLower(tx.Hash().Hex()),
+		From:    strings.ToLower(fromAddr),
+		Items:   items,
+	}, nil
 }
 
 func (ea *EthereumAdapter) Unsubscribe() {
