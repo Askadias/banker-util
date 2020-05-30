@@ -27,7 +27,7 @@ func main() {
 		if event.From == sourceWallet.Address ||
 			event.To == sourceWallet.Address ||
 			event.From == targetWallet.Address ||
-			event.To == targetWallet.Address {
+			event.To == targetWallet.Address || len(event.Items) > 0 {
 			fmt.Println(event)
 		}
 	}))
@@ -90,7 +90,7 @@ func main() {
 	// SEND ETH
 	estimatedETHSend := hub.MustEstimateSendFee(ctx, "ETH", targetWallet, "ETH", targetBalance["ETH"], sourceWallet.Address)
 	fmt.Printf("Estimation: %s -> %s %0.9f ETH + %0.9f ETH\n", targetWallet.Address, sourceWallet.Address, targetBalance["ETH"]-estimatedETHSend, estimatedETHSend)
-	sendHashETH := hub.MustSend(ctx, "ETH", targetWallet, "ETH", targetBalance["ETH"]-estimatedUSDTSend, sourceWallet.Address)
+	sendHashETH := hub.MustSend(ctx, "ETH", targetWallet, "ETH", targetBalance["ETH"]-estimatedETHSend, sourceWallet.Address)
 	fmt.Printf("Transaction Send ETH: https://etherscan.io/tx/%s\n", sendHashETH)
 	time.Sleep(2 * time.Minute)
 	ethereum.Unsubscribe()

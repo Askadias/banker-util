@@ -296,22 +296,23 @@ func (ma *MinterAdapter) Subscribe(ctx context.Context, consumer EventConsumer) 
 								if err != nil {
 									consumer.Consume(Event{Error: err})
 								}
+								var items []SendEvent
 								for _, item := range msend.List {
 									amount, _ := pipToBIP(item.Value).Float64()
 									if err != nil {
 										consumer.Consume(Event{Error: err})
 									}
-									consumer.Consume(Event{
+									items = append(items, SendEvent{
 										Hash:    tx.Hash,
 										From:    tx.From,
 										To:      item.To,
 										Coin:    item.Coin,
 										Amount:  amount,
-										Type:    TypeMultisend,
 										FeeCoin: tx.GasCoin,
 										Fee:     fee,
 									})
 								}
+								consumer.Consume(Event{Type: TypeMultisend, Items: items})
 							} else if tx.Type == int(transaction.TypeSend) {
 								send := &api.SendData{}
 								err := tx.Data.FillStruct(send)
@@ -322,16 +323,15 @@ func (ma *MinterAdapter) Subscribe(ctx context.Context, consumer EventConsumer) 
 								if err != nil {
 									consumer.Consume(Event{Error: err})
 								}
-								consumer.Consume(Event{
-									Hash:    tx.Hash,
-									From:    tx.From,
-									To:      send.To,
-									Coin:    send.Coin,
-									Amount:  amount,
-									Type:    TypeSend,
+								consumer.Consume(Event{Type: TypeSend, SendEvent: SendEvent{
+									Hash:   tx.Hash,
+									From:   tx.From,
+									To:     send.To,
+									Coin:   send.Coin,
+									Amount: amount,
 									FeeCoin: tx.GasCoin,
 									Fee:     fee,
-								})
+								}})
 							} else {
 								continue
 							}

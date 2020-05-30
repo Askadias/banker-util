@@ -17,6 +17,7 @@ import (
 	"github.com/tyler-smith/go-bip39"
 	"math"
 	"math/big"
+	"strings"
 )
 
 const (
@@ -495,32 +496,15 @@ func (ea *EthereumAdapter) Subscribe(ctx context.Context, consumer EventConsumer
 	}
 
 	go ea.handleBlockEvents(consumer, headers)
-	go ea.handleMultisendEvents(consumer, multisendLogs)
-
-	for token, conf := range tokens {
-		tokenLogs := make(chan *eth.TokenTransfer)
-		caller, err := eth.NewToken(common.HexToAddress(conf.address), ea.client)
-		if err != nil {
-			return fmt.Errorf("unable to bind multisend contract: %v", err)
-		}
-		ea.tokenSubscriptions = make(map[string]ethereum.Subscription)
-
-		sub, err := caller.WatchTransfer(nil, tokenLogs, nil, nil)
-		if err != nil {
-			ea.blockSubscription.Unsubscribe()
-			return err
-		}
-		ea.tokenSubscriptions[token] = sub
-		go ea.handleTokenEvents(sub, consumer, token, conf.decimals, tokenLogs)
-	}
 	return nil
 }
 
+type contractConfig struct {
+	coin     string
+	decimals int
+}
+
 func (ea *EthereumAdapter) handleBlockEvents(consumer EventConsumer, headers chan *types.Header) error {
-	type contractConfig struct {
-		coin     string
-		decimals int
-	}
 	var tokenContracts = map[string]contractConfig{}
 	for token, conf := range tokens {
 		tokenContracts[conf.address] = contractConfig{coin: token, decimals: conf.decimals}
@@ -538,21 +522,32 @@ func (ea *EthereumAdapter) handleBlockEvents(consumer EventConsumer, headers cha
 			if block != nil && block.Transactions() != nil {
 				for _, tx := range block.Transactions() {
 					if tx != nil && tx.To() != nil && tx.Value() != nil && tx.GasPrice() != nil {
+						fromAddr, _ := signer.Sender(tx)
 						to := tx.To().Hex()
-						if _, ok := tokenContracts[to]; !ok && to != MultiSendContractAddress {
-							fromAddr, _ := signer.Sender(tx)
+						fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(tx.Gas())), tx.GasPrice()), ETHDecimal).Float64()
+						if tokenConf, ok := tokenContracts[strings.ToLower(to)]; ok {
+							event, err := ea.parseTokenSendEvent(tx, fromAddr.Hex(), tokenConf)
+							if err != nil {
+								continue
+							}
+							consumer.Consume(event)
+						} else if to == MultiSendContractAddress {
+							event, err := ea.parseMultisendEvent(tx, fromAddr.Hex(), tokenContracts)
+							if err != nil {
+								continue
+							}
+							consumer.Consume(event)
+						} else {
 							amount, _ := weiToEther(tx.Value(), ETHDecimal).Float64()
-							fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(tx.Gas())), tx.GasPrice()), ETHDecimal).Float64()
-							consumer.Consume(Event{
-								Type:    TypeSend,
+							consumer.Consume(Event{Type: TypeSend, SendEvent: SendEvent{
 								Amount:  amount,
 								Coin:    "ETH",
 								FeeCoin: "ETH",
 								Fee:     fee,
-								Hash:    tx.Hash().Hex(),
-								To:      to,
-								From:    fromAddr.Hex(),
-							})
+								Hash:    strings.ToLower(tx.Hash().Hex()),
+								To:      strings.ToLower(to),
+								From:    strings.ToLower(fromAddr.Hex()),
+							}})
 						}
 					}
 				}
@@ -561,47 +556,77 @@ func (ea *EthereumAdapter) handleBlockEvents(consumer EventConsumer, headers cha
 	}
 }
 
-func (ea *EthereumAdapter) handleMultisendEvents(consumer EventConsumer, sink chan *eth.MultisendTransfer) {
-	for {
-		select {
-		case err := <-ea.multisendSubscription.Err():
-			consumer.Consume(Event{Error: err})
-		case vLog := <-sink:
-			consumer.Consume(Event{
-				Type:    TypeMultisend,
-				To:      vLog.Recipient.Hex(),
-				FeeCoin: "ETH",
-				From:    vLog.Raw.Address.Hex(),
-				Hash:    vLog.Raw.TxHash.Hex(),
-			})
-		}
+func (ea *EthereumAdapter) parseTokenSendEvent(tx *types.Transaction, fromAddr string, tokenConf contractConfig) (Event, error) {
+	transferData, err := eth.UnpackTransferData(tx.Data())
+	fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(tx.Gas())), tx.GasPrice()), ETHDecimal).Float64()
+	if err != nil {
+		return Event{}, err
 	}
+
+	amount, _ := weiToEther(transferData.Amount, tokenConf.decimals).Float64()
+	return Event{Type: TypeSend, SendEvent: SendEvent{
+		Amount:  amount,
+		Coin:    tokenConf.coin,
+		FeeCoin: "ETH",
+		Fee:     fee,
+		Hash:    strings.ToLower(tx.Hash().Hex()),
+		To:      strings.ToLower(transferData.Recipient.Hex()),
+		From:    strings.ToLower(fromAddr),
+	}}, nil
 }
 
-func (ea *EthereumAdapter) handleTokenEvents(
-	sub ethereum.Subscription,
-	consumer EventConsumer,
-	token string,
-	decimals int,
-	sink chan *eth.TokenTransfer,
-) {
-	for {
-		select {
-		case err := <-sub.Err():
-			consumer.Consume(Event{Error: err})
-		case vLog := <-sink:
-			amount, _ := weiToEther(vLog.Value, decimals).Float64()
-			consumer.Consume(Event{
-				Type:    TypeSend,
-				Coin:    token,
-				FeeCoin: "ETH",
-				Amount:  amount,
-				To:      vLog.To.Hex(),
-				From:    vLog.From.Hex(),
-				Hash:    vLog.Raw.TxHash.Hex(),
-			})
-		}
+func (ea *EthereumAdapter) parseMultisendEvent(tx *types.Transaction, fromAddr string, tokenContracts map[string]contractConfig) (Event, error) {
+	fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(tx.Gas())), tx.GasPrice()), ETHDecimal).Float64()
+	method, err := eth.GetMultisendMethod(tx.Data())
+	if err != nil {
+		return Event{}, err
 	}
+
+	coin := "ETH"
+	decimals := ETHDecimal
+	var addresses []common.Address
+	var amounts []*big.Int
+	if method == "bulkSendEth" {
+		bulkSendETHInput, err := eth.UnpackBulkSendETHData(tx.Data())
+		if err != nil {
+			return Event{}, err
+		}
+
+		addresses = bulkSendETHInput.Addresses
+		amounts = bulkSendETHInput.Amounts
+	} else if method == "bulkSendToken" {
+		bulkSendTokenInput, err := eth.UnpackBulkSendTokenData(tx.Data())
+		if err != nil {
+			return Event{}, err
+		}
+
+		addresses = bulkSendTokenInput.Addresses
+		amounts = bulkSendTokenInput.Amounts
+		tokenConf, ok := tokenContracts[strings.ToLower(bulkSendTokenInput.Token.Hex())]
+		if !ok {
+			return Event{}, fmt.Errorf("token not supported")
+		}
+
+		decimals = tokenConf.decimals
+		coin = tokenConf.coin
+	} else {
+		return Event{}, fmt.Errorf("contract metnod not supported")
+	}
+
+	var items []SendEvent
+	for i, address := range addresses {
+		amount, _ := weiToEther(amounts[i], decimals).Float64()
+		items = append(items, SendEvent{
+			Amount:  amount,
+			Coin:    coin,
+			FeeCoin: "ETH",
+			Fee:     fee,
+			Hash:    strings.ToLower(tx.Hash().Hex()),
+			To:      strings.ToLower(address.Hex()),
+			From:    strings.ToLower(fromAddr),
+		})
+	}
+	return Event{Type: TypeSend, Items: items}, nil
 }
 
 func (ea *EthereumAdapter) Unsubscribe() {

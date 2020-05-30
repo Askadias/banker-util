@@ -26,7 +26,7 @@ func main() {
 		if event.From == sourceWallet.Address ||
 			event.To == sourceWallet.Address ||
 			event.From == targetWallet.Address ||
-			event.To == targetWallet.Address {
+			event.To == targetWallet.Address || len(event.Items) > 0 {
 			fmt.Println(event)
 		}
 	}))
@@ -75,5 +75,6 @@ func main() {
 	fmt.Printf("Estimation: %s -> %s %0.9f %0.9f BIP\n", targetWallet.Address, sourceWallet.Address, estimatedBIP, targetBalance["BIP"]-estimatedONLY1)
 	sendHashBIP := hub.MustSend(ctx, "BIP", targetWallet, "BIP", targetBalance["BIP"]-estimatedBIP-estimatedONLY1, sourceWallet.Address)
 	fmt.Printf("Transaction Send BIP: https://minterscan.net/tx/%s\n", sendHashBIP)
+	time.Sleep(3 * time.Minute)
 	minter.Unsubscribe()
 }
