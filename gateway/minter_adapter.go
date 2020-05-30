@@ -352,6 +352,14 @@ func (ma *MinterAdapter) Unsubscribe() {
 	}
 }
 
+func (ma *MinterAdapter) GetLastBlockHeight() int {
+	return ma.lastBlockHeight
+}
+
+func (ma *MinterAdapter) SetLastBlockHeight(lastBlockHeight int) {
+	ma.lastBlockHeight = lastBlockHeight
+}
+
 func pipToBIP(pip string) *big.Float {
 	weiFloat := new(big.Float)
 	weiFloat.SetString(pip)
