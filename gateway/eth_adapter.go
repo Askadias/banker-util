@@ -543,12 +543,12 @@ func (ea *EthereumAdapter) handleBlockEvents(consumer EventConsumer, headers cha
 								Type:    TypeSend,
 								FeeCoin: "ETH",
 								Fee:     fee,
-								Hash:    strings.ToLower(tx.Hash().Hex()),
-								From:    strings.ToLower(fromAddr.Hex()),
+								Hash:    tx.Hash().Hex(),
+								From:    fromAddr.Hex(),
 								SendEvent: SendEvent{
 									Amount: amount,
 									Coin:   "ETH",
-									To:     strings.ToLower(to),
+									To:     to,
 								},
 							})
 						}
@@ -571,12 +571,12 @@ func (ea *EthereumAdapter) parseTokenSendEvent(tx *types.Transaction, fromAddr s
 		Type:    TypeSend,
 		FeeCoin: "ETH",
 		Fee:     fee,
-		Hash:    strings.ToLower(tx.Hash().Hex()),
-		From:    strings.ToLower(fromAddr),
+		Hash:    tx.Hash().Hex(),
+		From:    fromAddr,
 		SendEvent: SendEvent{
 			Amount: amount,
 			Coin:   tokenConf.coin,
-			To:     strings.ToLower(transferData.Recipient.Hex()),
+			To:     transferData.Recipient.Hex(),
 		},
 	}, nil
 }
@@ -625,15 +625,15 @@ func (ea *EthereumAdapter) parseMultisendEvent(tx *types.Transaction, fromAddr s
 		items = append(items, SendEvent{
 			Amount: amount,
 			Coin:   coin,
-			To:     strings.ToLower(address.Hex()),
+			To:     address.Hex(),
 		})
 	}
 	return Event{
 		Type:    TypeSend,
 		FeeCoin: "ETH",
 		Fee:     fee,
-		Hash:    strings.ToLower(tx.Hash().Hex()),
-		From:    strings.ToLower(fromAddr),
+		Hash:    tx.Hash().Hex(),
+		From:    fromAddr,
 		Items:   items,
 	}, nil
 }
