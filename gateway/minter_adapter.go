@@ -271,8 +271,8 @@ func (ma *MinterAdapter) prepareMultiSendTx(w Wallet, coin string, addresses []s
 }
 
 func (ma *MinterAdapter) IsTransactionComplete(_ context.Context, hash string) bool {
-	res, err := ma.client.Transaction(hash)
-	return err == nil && res.IsValid()
+	tx, err := ma.client.Transaction(hash)
+	return err == nil && tx != nil && tx.IsValid()
 }
 
 func (ma *MinterAdapter) Subscribe(_ context.Context, consumer EventConsumer) error {
