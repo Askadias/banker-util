@@ -270,7 +270,12 @@ func (ma *MinterAdapter) prepareMultiSendTx(w Wallet, coin string, addresses []s
 	return signedTransaction, nonce, nil
 }
 
-func (ma *MinterAdapter) Subscribe(ctx context.Context, consumer EventConsumer) error {
+func (ma *MinterAdapter) IsTransactionComplete(_ context.Context, hash string) bool {
+	res, err := ma.client.Transaction(hash)
+	return err == nil && res.IsValid()
+}
+
+func (ma *MinterAdapter) Subscribe(_ context.Context, consumer EventConsumer) error {
 	ma.Unsubscribe()
 	go func() {
 		ma.ticker = time.NewTicker(ma.pollingDuration)

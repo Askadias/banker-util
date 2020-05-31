@@ -23,15 +23,20 @@ func main() {
 	sourceWallet := hub.MustFindWallet(ctx, "ETH", os.Getenv("ETH_PRIVATE_KEY"))
 	targetWallet := hub.MustFindWallet(ctx, "ETH", os.Getenv("ETH_PRIVATE_KEY2"))
 
-	_ = ethereum.Subscribe(ctx, gateway.EventConsumerFunc(func(event gateway.Event) {
+	_ = hub.SubscribeAll(ctx, gateway.EventConsumerFunc(func(event gateway.Event) {
 		if event.From == sourceWallet.Address ||
 			event.To == sourceWallet.Address ||
 			event.From == targetWallet.Address ||
 			event.To == targetWallet.Address || len(event.Items) > 0 {
 			fmt.Println(event)
+			fmt.Println("Transaction complete:", hub.IsTransactionComplete(ctx, "ETH", event.Hash))
 		}
 	}))
 
+	hash := hub.MustSend(ctx, "ETH", sourceWallet, "USDT", 0.1, targetWallet.Address)
+	fmt.Printf("Transaction Send USDT: https://etherscan.io/tx/%s\n", hash)
+	fmt.Println("Transaction complete:", hub.IsTransactionComplete(ctx, "ETH", hash))
+	time.Sleep(20 * time.Minute)
 	// ==============================================================================================
 	// CREATE MULTI_SEND CONTRACT
 	//address, contractHash, err := ethereum.DeployMultiSendContract(ctx, sourceWallet)

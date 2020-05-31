@@ -15,6 +15,7 @@ type Adapter interface {
 	EstimateMultiSendFee(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (float64, error)
 	MultiSend(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (string, error)
 	Subscribe(ctx context.Context, consumer EventConsumer) error
+	IsTransactionComplete(ctx context.Context, hash string) bool
 	Unsubscribe()
 }
 
@@ -149,6 +150,14 @@ func (ch *CryptoHub) EstimateMultiSendFee(ctx context.Context, baseCoin string, 
 		return adapter.EstimateMultiSendFee(ctx, w, coin, addresses, amounts)
 	} else {
 		return 0, fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
+	}
+}
+
+func (ch *CryptoHub) IsTransactionComplete(ctx context.Context, baseCoin string, hash string) bool {
+	if adapter, ok := ch.BlockChains[baseCoin]; ok {
+		return adapter.IsTransactionComplete(ctx, hash)
+	} else {
+		return false
 	}
 }
 

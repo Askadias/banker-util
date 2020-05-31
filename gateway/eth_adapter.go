@@ -358,6 +358,11 @@ func (ea *EthereumAdapter) MultiSend(ctx context.Context, w Wallet, coin string,
 	}
 }
 
+func (ea *EthereumAdapter) IsTransactionComplete(ctx context.Context, hash string) bool {
+	tx, isPending, err := ea.client.TransactionByHash(ctx, common.HexToHash(hash))
+	return err == nil && tx != nil && !isPending
+}
+
 func (ea *EthereumAdapter) DeployMultiSendContract(ctx context.Context, w Wallet) (string, string, error) {
 	key, err := ea.getWalletKey(w.PrivateKey)
 	if err != nil {

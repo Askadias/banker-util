@@ -28,8 +28,14 @@ func main() {
 			event.From == targetWallet.Address ||
 			event.To == targetWallet.Address || len(event.Items) > 0 {
 			fmt.Println(event)
+			fmt.Println("Transaction complete:", hub.IsTransactionComplete(ctx, "BIP", event.Hash))
 		}
 	}))
+
+	hash := hub.MustSend(ctx, "BIP", sourceWallet, "BIP", 1, targetWallet.Address)
+	fmt.Printf("Transaction MultiSend BIP: https://minterscan.net/tx/%s\n", hash)
+	fmt.Println("Transaction complete:", hub.IsTransactionComplete(ctx, "ETH", hash))
+	time.Sleep(20 * time.Minute)
 
 	// ==============================================================================================
 	// CREATE WALLET
