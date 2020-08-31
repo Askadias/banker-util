@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Askadias/banker-util/gateway"
+	"github.com/Askadias/banker-util/gateway/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"os"
 	"time"
@@ -74,10 +75,10 @@ func main() {
 	estimatedUSDT, gasPriceUSDT := hub.MustEstimateMultiSendFee(ctx, "ETH", sourceWallet, "USDT", multiUSDTWallets, multiUSDTAmounts)
 	fmt.Printf("Multisend Estimation: %s -> %s %0.9f 0.1x10 USDT\n", sourceWallet.Address, targetWallet.Address, estimatedUSDT)
 
-	multisendHashETH := hub.MustMultiSend(ctx, "ETH", sourceWallet, "ETH", multiETHWallets, multiETHAmounts, gasPriceETH)
+	multisendHashETH := hub.MustMultiSend(context.WithValue(ctx, eth.GasPriceKey, gasPriceETH), "ETH", sourceWallet, "ETH", multiETHWallets, multiETHAmounts)
 	fmt.Printf("Transaction MultiSend ETH: https://etherscan.io/tx/%s\n", multisendHashETH)
 	//time.Sleep(1 * time.Minute)
-	multisendHashUSDT := hub.MustMultiSend(ctx, "ETH", sourceWallet, "USDT", multiUSDTWallets, multiUSDTAmounts, gasPriceUSDT)
+	multisendHashUSDT := hub.MustMultiSend(context.WithValue(ctx, eth.GasPriceKey, gasPriceUSDT), "ETH", sourceWallet, "USDT", multiUSDTWallets, multiUSDTAmounts)
 	fmt.Printf("Transaction MultiSend USDT: https://etherscan.io/tx/%s\n", multisendHashUSDT)
 	time.Sleep(2 * time.Minute)
 	sourceBalance = hub.MustGetBalance(ctx, "ETH", sourceWallet.Address)
@@ -89,7 +90,7 @@ func main() {
 	// SEND USDT
 	estimatedUSDTSend, gasPriceETH := hub.MustEstimateSendFee(ctx, "ETH", targetWallet, "USDT", targetBalance["USDT"], sourceWallet.Address)
 	fmt.Printf("Estimation: %s -> %s %0.9f USDT + %0.9f ETH\n", targetWallet.Address, sourceWallet.Address, targetBalance["USDT"], estimatedUSDTSend)
-	sendHashUSDT := hub.MustSend(ctx, "ETH", targetWallet, "USDT", targetBalance["USDT"], sourceWallet.Address, gasPriceETH)
+	sendHashUSDT := hub.MustSend(context.WithValue(ctx, eth.GasPriceKey, gasPriceETH), "ETH", targetWallet, "USDT", targetBalance["USDT"], sourceWallet.Address)
 	fmt.Printf("Transaction Send USDT: https://etherscan.io/tx/%s\n", sendHashUSDT)
 	time.Sleep(1 * time.Minute)
 
@@ -97,7 +98,7 @@ func main() {
 	// SEND ETH
 	estimatedETHSend, gasPriceUSDT := hub.MustEstimateSendFee(ctx, "ETH", targetWallet, "ETH", targetBalance["ETH"], sourceWallet.Address)
 	fmt.Printf("Estimation: %s -> %s %0.9f ETH + %0.9f ETH\n", targetWallet.Address, sourceWallet.Address, targetBalance["ETH"]-estimatedETHSend, estimatedETHSend)
-	sendHashETH := hub.MustSend(ctx, "ETH", targetWallet, "ETH", targetBalance["ETH"]-estimatedETHSend, sourceWallet.Address, gasPriceUSDT)
+	sendHashETH := hub.MustSend(context.WithValue(ctx, eth.GasPriceKey, gasPriceUSDT), "ETH", targetWallet, "ETH", targetBalance["ETH"]-estimatedETHSend, sourceWallet.Address)
 	fmt.Printf("Transaction Send ETH: https://etherscan.io/tx/%s\n", sendHashETH)
 	time.Sleep(2 * time.Minute)
 	ethereum.Unsubscribe()

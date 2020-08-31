@@ -57,9 +57,9 @@ func main() {
 	fmt.Printf("Multisend Estimation: %s -> %s %0.9f 0.1x3 BIP\n", sourceWallet.Address, targetWallet.Address, estimatedBIP)
 	fmt.Printf("Multisend Estimation: %s -> %s %0.9f 10x3 ONLY1\n", sourceWallet.Address, targetWallet.Address, estimatedONLY1)
 
-	multisendHashBIP := hub.MustMultiSend(ctx, "BIP", sourceWallet, "BIP", multiBIPWallets, multiBIPAmounts, 0)
+	multisendHashBIP := hub.MustMultiSend(ctx, "BIP", sourceWallet, "BIP", multiBIPWallets, multiBIPAmounts)
 	//time.Sleep(5 * time.Second)
-	multisendHashONLY1 := hub.MustMultiSend(ctx, "BIP", sourceWallet, "ONLY1", multiONLY1Wallets, multiONLY1Amounts, 0)
+	multisendHashONLY1 := hub.MustMultiSend(ctx, "BIP", sourceWallet, "ONLY1", multiONLY1Wallets, multiONLY1Amounts)
 	fmt.Printf("Transaction MultiSend BIP: https://minterscan.net/tx/%s\n", multisendHashBIP)
 	fmt.Printf("Transaction MultiSend ONLY1: https://minterscan.net/tx/%s\n", multisendHashONLY1)
 	time.Sleep(5 * time.Second)
@@ -72,14 +72,14 @@ func main() {
 	// SEND ONLY1
 	estimatedONLY1, _ = hub.MustEstimateSendFee(ctx, "BIP", targetWallet, "ONLY1", targetBalance["ONLY1"], sourceWallet.Address)
 	fmt.Printf("Estimation: %s -> %s %0.9f %0.9f ONLY1\n", targetWallet.Address, sourceWallet.Address, estimatedONLY1, targetBalance["ONLY1"])
-	sendHashONLY1 := hub.MustSend(ctx, "BIP", targetWallet, "ONLY1", targetBalance["ONLY1"], sourceWallet.Address, 0)
+	sendHashONLY1 := hub.MustSend(ctx, "BIP", targetWallet, "ONLY1", targetBalance["ONLY1"], sourceWallet.Address)
 	fmt.Printf("Transaction Send ONLY1: https://minterscan.net/tx/%s\n", sendHashONLY1)
 
 	// ==============================================================================================
 	// SEND BIP
 	estimatedBIP, _ = hub.MustEstimateSendFee(ctx, "BIP", targetWallet, "BIP", targetBalance["BIP"], sourceWallet.Address)
 	fmt.Printf("Estimation: %s -> %s %0.9f %0.9f BIP\n", targetWallet.Address, sourceWallet.Address, estimatedBIP, targetBalance["BIP"]-estimatedONLY1)
-	sendHashBIP := hub.MustSend(ctx, "BIP", targetWallet, "BIP", targetBalance["BIP"]-estimatedBIP-estimatedONLY1, sourceWallet.Address, 0)
+	sendHashBIP := hub.MustSend(ctx, "BIP", targetWallet, "BIP", targetBalance["BIP"]-estimatedBIP-estimatedONLY1, sourceWallet.Address)
 	fmt.Printf("Transaction Send BIP: https://minterscan.net/tx/%s\n", sendHashBIP)
 	time.Sleep(3 * time.Minute)
 	minter.Unsubscribe()

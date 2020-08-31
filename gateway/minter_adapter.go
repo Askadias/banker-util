@@ -137,7 +137,7 @@ func (ma *MinterAdapter) EstimateSendFee(_ context.Context, w Wallet, coin strin
 	return fee, 0, nil
 }
 
-func (ma *MinterAdapter) Send(_ context.Context, w Wallet, coin string, amount float64, address string, _ float64) (string, error) {
+func (ma *MinterAdapter) Send(_ context.Context, w Wallet, coin string, amount float64, address string) (string, error) {
 	var (
 		signedTransaction transaction.SignedTransaction
 		err               error
@@ -209,7 +209,7 @@ func (ma *MinterAdapter) EstimateMultiSendFee(_ context.Context, w Wallet, coin 
 	return fee, 0, nil
 }
 
-func (ma *MinterAdapter) MultiSend(_ context.Context, w Wallet, coin string, addresses []string, amounts []float64, _ float64) (string, error) {
+func (ma *MinterAdapter) MultiSend(_ context.Context, w Wallet, coin string, addresses []string, amounts []float64) (string, error) {
 	var (
 		signedTransaction transaction.SignedTransaction
 		err               error

@@ -1,12 +1,26 @@
 package eth
 
 import (
+	"context"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"strings"
 )
+
+var (
+	GasPriceKey = "GasPrice"
+)
+
+func GetGasPrice(ctx context.Context) float64 {
+	value := ctx.Value(GasPriceKey)
+	if gasPrice, ok := value.(float64); ok {
+		return gasPrice
+	} else {
+		return 0.0
+	}
+}
 
 var TokenABIJSON, _ = abi.JSON(strings.NewReader(TokenABI))
 

@@ -171,8 +171,12 @@ func (ea *EthereumAdapter) EstimateSendFee(ctx context.Context, w Wallet, coin s
 	}
 
 	from := crypto.PubkeyToAddress(*publicKeyECDSA)
-	price := ea.getGasPrice(ctx)
-	gasPrice, _ := weiToEther(price, ETHDecimal).Float64()
+	gasPrice := eth.GetGasPrice(ctx)
+	price := etherToWei(gasPrice, ETHDecimal)
+	if gasPrice == 0 {
+		price = ea.getGasPrice(ctx)
+		gasPrice, _ = weiToEther(price, ETHDecimal).Float64()
+	}
 
 	if coin == "ETH" {
 		to := common.HexToAddress(address)
@@ -204,12 +208,13 @@ func (ea *EthereumAdapter) EstimateSendFee(ctx context.Context, w Wallet, coin s
 	}
 }
 
-func (ea *EthereumAdapter) Send(ctx context.Context, w Wallet, coin string, amount float64, address string, gasPrice float64) (string, error) {
+func (ea *EthereumAdapter) Send(ctx context.Context, w Wallet, coin string, amount float64, address string) (string, error) {
 	key, err := ea.getWalletKey(w.PrivateKey)
 	if err != nil {
 		return "", fmt.Errorf("unable to parse wallet private key: %v", err)
 	}
 
+	gasPrice := eth.GetGasPrice(ctx)
 	price := etherToWei(gasPrice, ETHDecimal)
 	if gasPrice == 0 {
 		price = ea.getGasPrice(ctx)
@@ -278,8 +283,12 @@ func (ea *EthereumAdapter) EstimateMultiSendFee(ctx context.Context, w Wallet, c
 	}
 
 	from := crypto.PubkeyToAddress(*publicKeyECDSA)
-	price := ea.getGasPrice(ctx)
-	gasPrice, _ := weiToEther(price, ETHDecimal).Float64()
+	gasPrice := eth.GetGasPrice(ctx)
+	price := etherToWei(gasPrice, ETHDecimal)
+	if gasPrice == 0 {
+		price = ea.getGasPrice(ctx)
+		gasPrice, _ = weiToEther(price, ETHDecimal).Float64()
+	}
 
 	if tokenConf, ok := tokens[coin]; !ok && coin != "ETH" {
 		return 0, 0, fmt.Errorf("coin %s is not supported", coin)
@@ -320,12 +329,13 @@ func (ea *EthereumAdapter) EstimateMultiSendFee(ctx context.Context, w Wallet, c
 	}
 }
 
-func (ea *EthereumAdapter) MultiSend(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64, gasPrice float64) (string, error) {
+func (ea *EthereumAdapter) MultiSend(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (string, error) {
 	key, err := ea.getWalletKey(w.PrivateKey)
 	if err != nil {
 		return "", fmt.Errorf("unable to parse wallet private key: %v", err)
 	}
 
+	gasPrice := eth.GetGasPrice(ctx)
 	price := etherToWei(gasPrice, ETHDecimal)
 	if gasPrice == 0 {
 		price = ea.getGasPrice(ctx)
