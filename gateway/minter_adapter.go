@@ -124,20 +124,20 @@ func (ma *MinterAdapter) SellAll(ctx context.Context, w Wallet, coin string) (st
 	return res.Hash, nil
 }
 
-func (ma *MinterAdapter) EstimateSendFee(ctx context.Context, w Wallet, coin string, amount float64, address string) (float64, error) {
+func (ma *MinterAdapter) EstimateSendFee(_ context.Context, w Wallet, coin string, amount float64, address string) (float64, float64, error) {
 	signedTransaction, _, err := ma.prepareSendTx(w, coin, amount, address)
 	if err != nil {
-		return 0, fmt.Errorf("unable to create transaction to send coin %s to %s: %v", coin, address, err)
+		return 0, 0, fmt.Errorf("unable to create transaction to send coin %s to %s: %v", coin, address, err)
 	}
 	res, err := ma.client.EstimateTxCommission(signedTransaction)
 	if err != nil {
-		return 0, fmt.Errorf("unable to estimate send transatcion of %s to %s: %v", coin, address, err)
+		return 0, 0, fmt.Errorf("unable to estimate send transatcion of %s to %s: %v", coin, address, err)
 	}
 	fee, _ := pipToBIP(res.Commission).Float64()
-	return fee, nil
+	return fee, 0, nil
 }
 
-func (ma *MinterAdapter) Send(ctx context.Context, w Wallet, coin string, amount float64, address string) (string, error) {
+func (ma *MinterAdapter) Send(_ context.Context, w Wallet, coin string, amount float64, address string, _ float64) (string, error) {
 	var (
 		signedTransaction transaction.SignedTransaction
 		err               error
@@ -196,20 +196,20 @@ func (ma *MinterAdapter) prepareSendTx(w Wallet, coin string, amount float64, ad
 	return signedTransaction, nonce, nil
 }
 
-func (ma *MinterAdapter) EstimateMultiSendFee(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (float64, error) {
+func (ma *MinterAdapter) EstimateMultiSendFee(_ context.Context, w Wallet, coin string, addresses []string, amounts []float64) (float64, float64, error) {
 	signedTransaction, _, err := ma.prepareMultiSendTx(w, coin, addresses, amounts)
 	if err != nil {
-		return 0, fmt.Errorf("unable to create transaction to multisend coin %s to %v: %v", coin, amounts, err)
+		return 0, 0, fmt.Errorf("unable to create transaction to multisend coin %s to %v: %v", coin, amounts, err)
 	}
 	res, err := ma.client.EstimateTxCommission(signedTransaction)
 	if err != nil {
-		return 0, fmt.Errorf("unable to estimate multisend transaction of %s to %v: %v", coin, amounts, err)
+		return 0, 0, fmt.Errorf("unable to estimate multisend transaction of %s to %v: %v", coin, amounts, err)
 	}
 	fee, _ := pipToBIP(res.Commission).Float64()
-	return fee, nil
+	return fee, 0, nil
 }
 
-func (ma *MinterAdapter) MultiSend(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (string, error) {
+func (ma *MinterAdapter) MultiSend(_ context.Context, w Wallet, coin string, addresses []string, amounts []float64, _ float64) (string, error) {
 	var (
 		signedTransaction transaction.SignedTransaction
 		err               error

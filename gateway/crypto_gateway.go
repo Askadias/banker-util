@@ -10,10 +10,10 @@ type Adapter interface {
 	NewWallet(ctx context.Context) (Wallet, error)
 	FindWallet(ctx context.Context, privateKey string) (Wallet, error)
 	GetBalance(ctx context.Context, address string) (map[string]float64, error)
-	EstimateSendFee(ctx context.Context, w Wallet, coin string, amount float64, address string) (float64, error)
-	Send(ctx context.Context, w Wallet, coin string, amount float64, address string) (string, error)
-	EstimateMultiSendFee(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (float64, error)
-	MultiSend(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (string, error)
+	EstimateSendFee(ctx context.Context, w Wallet, coin string, amount float64, address string) (float64, float64, error)
+	Send(ctx context.Context, w Wallet, coin string, amount float64, address string, gasPrice float64) (string, error)
+	EstimateMultiSendFee(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (float64, float64, error)
+	MultiSend(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64, gasPrice float64) (string, error)
 	Subscribe(ctx context.Context, consumer EventConsumer) error
 	IsTransactionComplete(ctx context.Context, hash string) bool
 	Unsubscribe()
@@ -83,73 +83,73 @@ func (ch *CryptoHub) GetBalance(ctx context.Context, baseCoin string, address st
 	}
 }
 
-func (ch *CryptoHub) MustSend(ctx context.Context, baseCoin string, w Wallet, coin string, amount float64, address string) string {
-	hash, err := ch.Send(ctx, baseCoin, w, coin, amount, address)
+func (ch *CryptoHub) MustSend(ctx context.Context, baseCoin string, w Wallet, coin string, amount float64, address string, gasPrice float64) string {
+	hash, err := ch.Send(ctx, baseCoin, w, coin, amount, address, gasPrice)
 	if err != nil {
 		panic(err)
 	}
 	return hash
 }
 
-func (ch *CryptoHub) Send(ctx context.Context, baseCoin string, w Wallet, coin string, amount float64, address string) (string, error) {
+func (ch *CryptoHub) Send(ctx context.Context, baseCoin string, w Wallet, coin string, amount float64, address string, gasPrice float64) (string, error) {
 	if adapter, ok := ch.BlockChains[baseCoin]; ok {
-		return adapter.Send(ctx, w, coin, amount, address)
+		return adapter.Send(ctx, w, coin, amount, address, gasPrice)
 	} else {
 		return "", fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
 	}
 }
 
-func (ch *CryptoHub) MustEstimateSendFee(ctx context.Context, baseCoin string, w Wallet, coin string, amount float64, address string) float64 {
-	estimation, err := ch.EstimateSendFee(ctx, baseCoin, w, coin, amount, address)
+func (ch *CryptoHub) MustEstimateSendFee(ctx context.Context, baseCoin string, w Wallet, coin string, amount float64, address string) (float64, float64) {
+	estimation, gasPrice, err := ch.EstimateSendFee(ctx, baseCoin, w, coin, amount, address)
 	if err != nil {
 		panic(err)
 	}
-	return estimation
+	return estimation, gasPrice
 }
 
-func (ch *CryptoHub) EstimateSendFee(ctx context.Context, baseCoin string, w Wallet, coin string, amount float64, address string) (float64, error) {
+func (ch *CryptoHub) EstimateSendFee(ctx context.Context, baseCoin string, w Wallet, coin string, amount float64, address string) (float64, float64, error) {
 	if adapter, ok := ch.BlockChains[baseCoin]; ok {
 		return adapter.EstimateSendFee(ctx, w, coin, amount, address)
 	} else {
-		return 0, fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
+		return 0, 0, fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
 	}
 }
 
-func (ch *CryptoHub) MustMultiSend(ctx context.Context, baseCoin string, w Wallet, coin string, addresses []string, amounts []float64) string {
-	hash, err := ch.MultiSend(ctx, baseCoin, w, coin, addresses, amounts)
+func (ch *CryptoHub) MustMultiSend(ctx context.Context, baseCoin string, w Wallet, coin string, addresses []string, amounts []float64, gasPrice float64) string {
+	hash, err := ch.MultiSend(ctx, baseCoin, w, coin, addresses, amounts, gasPrice)
 	if err != nil {
 		panic(err)
 	}
 	return hash
 }
 
-func (ch *CryptoHub) MultiSend(ctx context.Context, baseCoin string, w Wallet, coin string, addresses []string, amounts []float64) (string, error) {
+func (ch *CryptoHub) MultiSend(ctx context.Context, baseCoin string, w Wallet, coin string, addresses []string, amounts []float64, gasPrice float64) (string, error) {
 	if adapter, ok := ch.BlockChains[baseCoin]; ok {
 		if len(addresses) != len(amounts) {
 			return "", fmt.Errorf("number of addresses should be equal to numberr of amounts")
 		}
-		return adapter.MultiSend(ctx, w, coin, addresses, amounts)
+		return adapter.MultiSend(ctx, w, coin, addresses, amounts, gasPrice)
 	} else {
 		return "", fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
 	}
 }
 
-func (ch *CryptoHub) MustEstimateMultiSendFee(ctx context.Context, baseCoin string, w Wallet, coin string, addresses []string, amounts []float64) float64 {
-	estimation, err := ch.EstimateMultiSendFee(ctx, baseCoin, w, coin, addresses, amounts)
+func (ch *CryptoHub) MustEstimateMultiSendFee(ctx context.Context, baseCoin string, w Wallet, coin string, addresses []string, amounts []float64) (float64, float64) {
+	estimation, gasPrice, err := ch.EstimateMultiSendFee(ctx, baseCoin, w, coin, addresses, amounts)
 	if err != nil {
 		panic(err)
 	}
-	return estimation
+	return estimation, gasPrice
 }
 
-func (ch *CryptoHub) EstimateMultiSendFee(ctx context.Context, baseCoin string, w Wallet, coin string, addresses []string, amounts []float64) (float64, error) {
+func (ch *CryptoHub) EstimateMultiSendFee(ctx context.Context, baseCoin string, w Wallet, coin string, addresses []string, amounts []float64) (float64, float64, error) {
 	if adapter, ok := ch.BlockChains[baseCoin]; ok {
 		if len(addresses) != len(amounts) {
-			return 0, fmt.Errorf("number of addresses should be equal to numberr of amounts")
+			return 0, 0, fmt.Errorf("number of addresses should be equal to numberr of amounts")
 		}
 		return adapter.EstimateMultiSendFee(ctx, w, coin, addresses, amounts)
 	} else {
-		return 0, fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
+		return 0, 0, fmt.Errorf("blockchain adapter for coin %s not found", baseCoin)
 	}
 }
 
