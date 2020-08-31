@@ -22,6 +22,10 @@ func GetGasPrice(ctx context.Context) float64 {
 	}
 }
 
+func WithGasPrice(ctx context.Context, gasPrice float64) context.Context {
+	return context.WithValue(ctx, GasPriceKey, gasPrice)
+}
+
 var TokenABIJSON, _ = abi.JSON(strings.NewReader(TokenABI))
 
 func PackTransferData(_to common.Address, _value *big.Int) ([]byte, error) {
