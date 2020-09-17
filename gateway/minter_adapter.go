@@ -281,6 +281,9 @@ func (ma *MinterAdapter) Subscribe(_ context.Context, consumer EventConsumer) er
 		ma.ticker = time.NewTicker(ma.pollingDuration)
 		for range ma.ticker.C {
 			st, _ := ma.pollingClient.Status()
+			if st == nil {
+				continue
+			}
 			newLastBlockHeight, _ := strconv.ParseInt(st.LatestBlockHeight, 10, 32)
 			startBlock := ma.lastBlockHeight + 1
 			if ma.lastBlockHeight == 0 {
