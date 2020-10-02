@@ -658,7 +658,7 @@ func (ea *EthereumAdapter) parseMultisendEvent(tx *types.Transaction, fromAddr s
 		})
 	}
 	return Event{
-		Type:    TypeSend,
+		Type:    TypeMultisend,
 		FeeCoin: "ETH",
 		Fee:     fee,
 		Hash:    tx.Hash().Hex(),
