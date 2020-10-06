@@ -48,7 +48,7 @@ func (ma *MinterAdapter) IsValidAddress(_ context.Context, address string) bool 
 	return wallet.IsValidAddress(address)
 }
 
-func (ma *MinterAdapter) FindWallet(ctx context.Context, privateKey string) (Wallet, error) {
+func (ma *MinterAdapter) FindWallet(_ context.Context, privateKey string) (Wallet, error) {
 	emptyWallet := Wallet{"", "", ""}
 	mntWallet, err := ma.getWallet(privateKey)
 	if err != nil {
@@ -57,7 +57,7 @@ func (ma *MinterAdapter) FindWallet(ctx context.Context, privateKey string) (Wal
 	return Wallet{ma.baseCoin, mntWallet.Address(), privateKey}, nil
 }
 
-func (ma *MinterAdapter) NewWallet(ctx context.Context) (Wallet, error) {
+func (ma *MinterAdapter) NewWallet(_ context.Context) (Wallet, error) {
 	mnemonic, err := wallet.NewMnemonic()
 	emptyWallet := Wallet{"", "", ""}
 	if err != nil {
@@ -70,7 +70,7 @@ func (ma *MinterAdapter) NewWallet(ctx context.Context) (Wallet, error) {
 	return Wallet{ma.baseCoin, mntWallet.Address(), mnemonic}, nil
 }
 
-func (ma *MinterAdapter) GetBalance(ctx context.Context, address string) (map[string]float64, error) {
+func (ma *MinterAdapter) GetBalance(_ context.Context, address string) (map[string]float64, error) {
 	balance := map[string]float64{}
 	result, err := ma.client.Balance(address)
 	if err != nil {
@@ -88,7 +88,55 @@ func (ma *MinterAdapter) GetBalance(ctx context.Context, address string) (map[st
 	return balance, nil
 }
 
-func (ma *MinterAdapter) SellAll(ctx context.Context, w Wallet, coin string) (string, error) {
+func (ma *MinterAdapter) EstimateBuy(_ context.Context, w Wallet, coin string, amount float64) (float64, float64, error) {
+	res, err := ma.client.EstimateCoinBuy("BIP", big.NewInt(int64(amount)).String(), coin)
+	if err != nil {
+		return 0, 0, fmt.Errorf("unable to buy coin %s: %v", coin, err)
+	}
+	fee, _ := pipToBIP(res.Commission).Float64()
+	cost, _ := pipToBIP(res.WillPay).Float64()
+
+	return cost, fee, nil
+}
+
+func (ma *MinterAdapter) Buy(_ context.Context, w Wallet, coin string, amount float64) (string, error) {
+	data := transaction.NewBuyCoinData().
+		SetCoinToSell("BIP").
+		SetCoinToBuy(coin).
+		SetValueToBuy(big.NewInt(int64(amount)))
+
+	newTransaction, err := transaction.NewBuilder(transaction.MainNetChainID).NewTransaction(data)
+	if err != nil {
+		return "", fmt.Errorf("unable to prepare transaction: %v", err)
+	}
+	mntWallet, err := ma.getWallet(w.PrivateKey)
+	if err != nil {
+		return "", err
+	}
+
+	nonce, err := ma.client.Nonce(mntWallet.Address())
+	if err != nil {
+		return "", err
+	}
+	signedTransaction, err := newTransaction.
+		SetNonce(nonce).
+		SetGasCoin(coin).
+		SetGasPrice(1).
+		SetSignatureType(transaction.SignatureTypeSingle).
+		Sign(mntWallet.PrivateKey())
+	if err != nil {
+		return "", fmt.Errorf("unable to create transaction to buy coin coin %s: %v", coin, err)
+	}
+
+	res, err := ma.client.SendTransaction(signedTransaction)
+	if err != nil {
+		return "", fmt.Errorf("unable to buy coin %s: %v", coin, err)
+	}
+
+	return res.Hash, nil
+}
+
+func (ma *MinterAdapter) SellAll(_ context.Context, w Wallet, coin string) (string, error) {
 	data := transaction.NewSellAllCoinData().
 		SetCoinToSell(coin).
 		SetCoinToBuy("BIP")
@@ -120,7 +168,6 @@ func (ma *MinterAdapter) SellAll(ctx context.Context, w Wallet, coin string) (st
 	if err != nil {
 		return "", fmt.Errorf("unable to sell coin %s: %v", coin, err)
 	}
-
 	return res.Hash, nil
 }
 
