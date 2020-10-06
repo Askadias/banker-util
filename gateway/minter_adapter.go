@@ -89,7 +89,7 @@ func (ma *MinterAdapter) GetBalance(_ context.Context, address string) (map[stri
 }
 
 func (ma *MinterAdapter) EstimateBuy(_ context.Context, coin string, amount float64) (float64, float64, error) {
-	res, err := ma.client.EstimateCoinBuy("BIP", big.NewInt(int64(amount)).String(), coin)
+	res, err := ma.client.EstimateCoinBuy("BIP", bipToCoin(amount).String(), coin)
 	if err != nil {
 		return 0, 0, fmt.Errorf("unable to buy coin %s: %v", coin, err)
 	}
@@ -103,7 +103,7 @@ func (ma *MinterAdapter) Buy(_ context.Context, w Wallet, coin string, amount fl
 	data := transaction.NewBuyCoinData().
 		SetCoinToSell("BIP").
 		SetCoinToBuy(coin).
-		SetValueToBuy(big.NewInt(int64(amount)))
+		SetValueToBuy(bipToCoin(amount))
 
 	newTransaction, err := transaction.NewBuilder(transaction.MainNetChainID).NewTransaction(data)
 	if err != nil {
@@ -389,6 +389,26 @@ func (ma *MinterAdapter) Subscribe(_ context.Context, consumer EventConsumer) er
 									SendEvent: SendEvent{
 										To:     send.To,
 										Coin:   send.Coin,
+										Amount: amount,
+									}})
+							} else if tx.Type == int(transaction.TypeBuyCoin) {
+								buy := &api.BuyCoinData{}
+								err := tx.Data.FillStruct(buy)
+								if err != nil {
+									consumer.Consume(Event{Error: err})
+								}
+								amount, _ := pipToBIP(buy.ValueToBuy).Float64()
+								if err != nil {
+									consumer.Consume(Event{Error: err})
+								}
+								consumer.Consume(Event{Type: TypeBuy,
+									Hash:    tx.Hash,
+									From:    tx.From,
+									FeeCoin: tx.GasCoin,
+									Fee:     fee,
+									SendEvent: SendEvent{
+										ToCoin: buy.CoinToBuy,
+										Coin:   buy.CoinToSell,
 										Amount: amount,
 									}})
 							} else {
