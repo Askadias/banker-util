@@ -88,7 +88,7 @@ func (ma *MinterAdapter) GetBalance(_ context.Context, address string) (map[stri
 	return balance, nil
 }
 
-func (ma *MinterAdapter) EstimateBuy(_ context.Context, w Wallet, coin string, amount float64) (float64, float64, error) {
+func (ma *MinterAdapter) EstimateBuy(_ context.Context, coin string, amount float64) (float64, float64, error) {
 	res, err := ma.client.EstimateCoinBuy("BIP", big.NewInt(int64(amount)).String(), coin)
 	if err != nil {
 		return 0, 0, fmt.Errorf("unable to buy coin %s: %v", coin, err)
