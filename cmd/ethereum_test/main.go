@@ -66,10 +66,10 @@ func main() {
 	//fmt.Printf("Transaction MultiSend USDT: https://etherscan.io/tx/%s\n", multisendApproveHashUSDT)
 	gasPriceETH := 0.0
 	gasPriceUSDT := 0.0
-	multiETHWallets := []string{targetWallet.Address, targetWallet.Address, targetWallet.Address, targetWallet.Address, targetWallet.Address, targetWallet.Address, targetWallet.Address, targetWallet.Address, targetWallet.Address, targetWallet.Address}
-	multiETHAmounts := []float64{0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01}
-	multiUSDTWallets := []string{targetWallet.Address, targetWallet.Address, targetWallet.Address, targetWallet.Address, targetWallet.Address, targetWallet.Address, targetWallet.Address, targetWallet.Address, targetWallet.Address, targetWallet.Address}
-	multiUSDTAmounts := []float64{0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01}
+	multiETHWallets := []string{targetWallet.Address, targetWallet.Address}
+	multiETHAmounts := []float64{0.01, 0.01}
+	multiUSDTWallets := []string{targetWallet.Address, targetWallet.Address}
+	multiUSDTAmounts := []float64{2, 0.02}
 	estimatedETH, gasPriceETH := hub.MustEstimateMultiSendFee(ctx, "ETH", sourceWallet, "ETH", multiETHWallets, multiETHAmounts)
 	fmt.Printf("Multisend Estimation: %s -> %s %0.9f 0.01x10 ETH\n", sourceWallet.Address, targetWallet.Address, estimatedETH)
 	estimatedUSDT, gasPriceUSDT := hub.MustEstimateMultiSendFee(ctx, "ETH", sourceWallet, "USDT", multiUSDTWallets, multiUSDTAmounts)
@@ -80,7 +80,7 @@ func main() {
 	//time.Sleep(1 * time.Minute)
 	multisendHashUSDT := hub.MustMultiSend(context.WithValue(ctx, eth.GasPriceKey, gasPriceUSDT), "ETH", sourceWallet, "USDT", multiUSDTWallets, multiUSDTAmounts)
 	fmt.Printf("Transaction MultiSend USDT: https://etherscan.io/tx/%s\n", multisendHashUSDT)
-	time.Sleep(2 * time.Minute)
+	//time.Sleep(2 * time.Minute)
 	sourceBalance = hub.MustGetBalance(ctx, "ETH", sourceWallet.Address)
 	targetBalance = hub.MustGetBalance(ctx, "ETH", targetWallet.Address)
 	fmt.Printf("Balance: %s = %v\n", sourceWallet.Address, sourceBalance)
