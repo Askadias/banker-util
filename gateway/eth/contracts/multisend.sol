@@ -57,17 +57,18 @@ contract MultiSend is Initializable {
             total = total.add(amounts[i]);
         }
 
-        require(token.allowance(msg.sender, address(this)) >= total, "not enough USDT balance");
+        address payable from = msg.sender;
+        require(token.allowance(from, address(this)) >= total, "not enough USDT balance");
 
         // transfer token to addresses
         for (uint8 j = 0; j < addresses.length; j++) {
             address payable destination = address(uint160(addresses[j])); // cast the address to payable
-            token.safeTransferFrom(msg.sender, destination, amounts[j]);
+            token.safeTransferFrom(from, destination, amounts[j]);
             emit Transfer(destination, amounts[j]);
         }
         // transfer accidentally sent ETH back to sender
         if (msg.value > 0) {
-            msg.sender.transfer(msg.value);
+            from.transfer(msg.value);
             emit Refund(msg.value);
         }
         return true;
