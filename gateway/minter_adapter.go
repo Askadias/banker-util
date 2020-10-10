@@ -135,7 +135,7 @@ func (ma *MinterAdapter) Buy(c context.Context, w Wallet, coin string, amount fl
 		return "", fmt.Errorf("unable to buy coin %s: %v", coin, err)
 	}
 
-	return res.Hash, nil
+	return "Mt" + strings.ToLower(res.Hash), nil
 }
 
 func (ma *MinterAdapter) SellAll(_ context.Context, w Wallet, coin string) (string, error) {
@@ -170,7 +170,7 @@ func (ma *MinterAdapter) SellAll(_ context.Context, w Wallet, coin string) (stri
 	if err != nil {
 		return "", fmt.Errorf("unable to sell coin %s: %v", coin, err)
 	}
-	return res.Hash, nil
+	return "Mt" + strings.ToLower(res.Hash), nil
 }
 
 func (ma *MinterAdapter) EstimateSendFee(_ context.Context, w Wallet, coin string, amount float64, address string) (float64, float64, error) {
