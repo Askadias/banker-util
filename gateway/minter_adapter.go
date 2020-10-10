@@ -99,10 +99,12 @@ func (ma *MinterAdapter) EstimateBuy(_ context.Context, coin string, amount floa
 	return cost, fee, nil
 }
 
-func (ma *MinterAdapter) Buy(_ context.Context, w Wallet, coin string, amount float64) (string, error) {
+func (ma *MinterAdapter) Buy(c context.Context, w Wallet, coin string, amount float64) (string, error) {
+	cost, _, err := ma.EstimateBuy(c, coin, amount)
 	data := transaction.NewBuyCoinData().
 		SetCoinToSell("BIP").
 		SetCoinToBuy(coin).
+		SetMaximumValueToSell(bipToCoin(cost)).
 		SetValueToBuy(bipToCoin(amount))
 
 	newTransaction, err := transaction.NewBuilder(transaction.MainNetChainID).NewTransaction(data)
@@ -120,7 +122,7 @@ func (ma *MinterAdapter) Buy(_ context.Context, w Wallet, coin string, amount fl
 	}
 	signedTransaction, err := newTransaction.
 		SetNonce(nonce).
-		SetGasCoin(coin).
+		SetGasCoin("BIP").
 		SetGasPrice(1).
 		SetSignatureType(transaction.SignatureTypeSingle).
 		Sign(mntWallet.PrivateKey())
