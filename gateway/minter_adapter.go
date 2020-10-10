@@ -104,7 +104,7 @@ func (ma *MinterAdapter) Buy(c context.Context, w Wallet, coin string, amount fl
 	data := transaction.NewBuyCoinData().
 		SetCoinToSell("BIP").
 		SetCoinToBuy(coin).
-		SetMaximumValueToSell(bipToCoin(cost)).
+		SetMaximumValueToSell(bipToCoin(cost*2)).
 		SetValueToBuy(bipToCoin(amount))
 
 	newTransaction, err := transaction.NewBuilder(transaction.MainNetChainID).NewTransaction(data)
