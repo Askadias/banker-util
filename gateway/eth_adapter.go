@@ -417,10 +417,55 @@ func (ea *EthereumAdapter) DeployMultiSendContract(ctx context.Context, w Wallet
 	return address.Hex(), tx.Hash().Hex(), nil
 }
 
+func (ea *EthereumAdapter) EstimateApproveTokenMultisend(ctx context.Context, w Wallet, coin string) (float64, float64, error) {
+	key, err := ea.getWalletKey(w.PrivateKey)
+	if err != nil {
+		return 0, 0, fmt.Errorf("unable to parse wallet private key: %v", err)
+	}
+
+	publicKeyECDSA, ok := key.Public().(*ecdsa.PublicKey)
+	if !ok {
+		return 0, 0, fmt.Errorf("unable to get public key for wallet: %s", w.Address)
+	}
+
+	from := crypto.PubkeyToAddress(*publicKeyECDSA)
+	gasPrice := eth.GetGasPrice(ctx)
+	price := etherToWei(gasPrice, ETHDecimal)
+	if gasPrice == 0 {
+		price = ea.getGasPrice(ctx)
+		gasPrice, _ = weiToEther(price, ETHDecimal).Float64()
+	}
+
+	if tokenConf, ok := tokens[coin]; ok {
+		data, err := eth.PackApproveData(common.HexToAddress(MultiSendContractAddress), MaxUint256)
+		if err != nil {
+			return 0, 0, fmt.Errorf("unable to pack contract data: %v", err)
+		}
+
+		to := common.HexToAddress(tokenConf.address)
+		msg := ethereum.CallMsg{From: from, To: &to, GasPrice: price, Data: data}
+		estimatedFee, err := ea.client.EstimateGas(ctx, msg)
+		if err != nil {
+			return 0, 0, fmt.Errorf("unable to estimate gas price: %v", err)
+		}
+
+		fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(estimatedFee)), price), ETHDecimal).Float64()
+		return fee, gasPrice, nil
+	} else {
+		return 0, 0, fmt.Errorf("coin %s is not supported", coin)
+	}
+}
+
 func (ea *EthereumAdapter) ApproveTokenMultisend(ctx context.Context, w Wallet, coin string) (string, error) {
 	key, err := ea.getWalletKey(w.PrivateKey)
 	if err != nil {
 		return "", fmt.Errorf("unable to parse wallet private key: %v", err)
+	}
+
+	gasPrice := eth.GetGasPrice(ctx)
+	price := etherToWei(gasPrice, ETHDecimal)
+	if gasPrice == 0 {
+		price = ea.getGasPrice(ctx)
 	}
 
 	if tokenConf, ok := tokens[coin]; ok {
@@ -431,7 +476,7 @@ func (ea *EthereumAdapter) ApproveTokenMultisend(ctx context.Context, w Wallet, 
 
 		opts := bind.NewKeyedTransactor(key)
 		opts.Context = ctx
-		opts.GasPrice = ea.getGasPrice(ctx)
+		opts.GasPrice = price
 
 		fmt.Println("MaxUint256: " + MaxUint256.String())
 		tx, err := caller.Approve(opts, common.HexToAddress(MultiSendContractAddress), MaxUint256)

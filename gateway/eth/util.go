@@ -32,6 +32,10 @@ func PackTransferData(_to common.Address, _value *big.Int) ([]byte, error) {
 	return TokenABIJSON.Pack("transfer", _to, _value)
 }
 
+func PackApproveData(_spender common.Address, _value *big.Int) ([]byte, error) {
+	return TokenABIJSON.Pack("approve", _spender, _value)
+}
+
 type TransferInput struct {
 	Recipient common.Address
 	Amount    *big.Int
