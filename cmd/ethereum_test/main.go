@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Askadias/banker-util/gateway"
 	"github.com/Askadias/banker-util/gateway/eth"
+	"github.com/Askadias/banker-util/gateway/listener"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"os"
 	"time"
@@ -24,7 +25,7 @@ func main() {
 	sourceWallet := hub.MustFindWallet(ctx, "ETH", os.Getenv("ETH_PRIVATE_KEY"))
 	targetWallet := hub.MustFindWallet(ctx, "ETH", os.Getenv("ETH_PRIVATE_KEY2"))
 
-	_ = hub.SubscribeAll(ctx, gateway.EventConsumerFunc(func(event gateway.Event) {
+	_ = hub.SubscribeAll(ctx, listener.EventConsumerFunc(func(event listener.Event) {
 		if event.From == sourceWallet.Address ||
 			event.To == sourceWallet.Address ||
 			event.From == targetWallet.Address ||

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Askadias/banker-util/gateway"
+	"github.com/Askadias/banker-util/gateway/listener"
 	"github.com/MinterTeam/minter-go-sdk/api"
 	"github.com/go-resty/resty/v2"
 	"os"
@@ -22,7 +23,7 @@ func main() {
 	sourceWallet := hub.MustFindWallet(ctx, "BIP", os.Getenv("BIP_PRIVATE_KEY"))
 	targetWallet := hub.MustFindWallet(ctx, "BIP", os.Getenv("BIP_PRIVATE_KEY2"))
 
-	_ = minter.Subscribe(ctx, gateway.EventConsumerFunc(func(event gateway.Event) {
+	_ = minter.Subscribe(ctx, listener.EventConsumerFunc(func(event listener.Event) {
 		if event.From == sourceWallet.Address ||
 			event.To == sourceWallet.Address ||
 			event.From == targetWallet.Address ||

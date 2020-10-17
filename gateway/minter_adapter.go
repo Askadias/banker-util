@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Askadias/banker-util/gateway/listener"
 	"github.com/MinterTeam/minter-go-sdk/api"
 	"github.com/MinterTeam/minter-go-sdk/transaction"
 	"github.com/MinterTeam/minter-go-sdk/wallet"
@@ -324,7 +325,7 @@ func (ma *MinterAdapter) IsTransactionComplete(_ context.Context, hash string) b
 	return err == nil && tx != nil && tx.IsValid()
 }
 
-func (ma *MinterAdapter) Subscribe(_ context.Context, consumer EventConsumer) error {
+func (ma *MinterAdapter) Subscribe(_ context.Context, consumer listener.EventConsumer) error {
 	ma.Unsubscribe()
 	go func() {
 		ma.ticker = time.NewTicker(ma.pollingDuration)
@@ -351,22 +352,22 @@ func (ma *MinterAdapter) Subscribe(_ context.Context, consumer EventConsumer) er
 								msend := &api.MultisendData{}
 								err := tx.Data.FillStruct(msend)
 								if err != nil {
-									consumer.Consume(Event{Error: err})
+									consumer.Consume(listener.Event{Error: err})
 								}
-								var items []SendEvent
+								var items []listener.SendEvent
 								for _, item := range msend.List {
 									amount, _ := pipToBIP(item.Value).Float64()
 									if err != nil {
-										consumer.Consume(Event{Error: err})
+										consumer.Consume(listener.Event{Error: err})
 									}
-									items = append(items, SendEvent{
+									items = append(items, listener.SendEvent{
 										To:     item.To,
 										Coin:   item.Coin,
 										Amount: amount,
 									})
 								}
-								consumer.Consume(Event{
-									Type:    TypeMultisend,
+								consumer.Consume(listener.Event{
+									Type:    listener.TypeMultisend,
 									Hash:    tx.Hash,
 									From:    tx.From,
 									FeeCoin: tx.GasCoin,
@@ -377,18 +378,18 @@ func (ma *MinterAdapter) Subscribe(_ context.Context, consumer EventConsumer) er
 								send := &api.SendData{}
 								err := tx.Data.FillStruct(send)
 								if err != nil {
-									consumer.Consume(Event{Error: err})
+									consumer.Consume(listener.Event{Error: err})
 								}
 								amount, _ := pipToBIP(send.Value).Float64()
 								if err != nil {
-									consumer.Consume(Event{Error: err})
+									consumer.Consume(listener.Event{Error: err})
 								}
-								consumer.Consume(Event{Type: TypeSend,
+								consumer.Consume(listener.Event{Type: listener.TypeSend,
 									Hash:    tx.Hash,
 									From:    tx.From,
 									FeeCoin: tx.GasCoin,
 									Fee:     fee,
-									SendEvent: SendEvent{
+									SendEvent: listener.SendEvent{
 										To:     send.To,
 										Coin:   send.Coin,
 										Amount: amount,
@@ -397,18 +398,18 @@ func (ma *MinterAdapter) Subscribe(_ context.Context, consumer EventConsumer) er
 								buy := &api.BuyCoinData{}
 								err := tx.Data.FillStruct(buy)
 								if err != nil {
-									consumer.Consume(Event{Error: err})
+									consumer.Consume(listener.Event{Error: err})
 								}
 								amount, _ := pipToBIP(buy.ValueToBuy).Float64()
 								if err != nil {
-									consumer.Consume(Event{Error: err})
+									consumer.Consume(listener.Event{Error: err})
 								}
-								consumer.Consume(Event{Type: TypeBuy,
+								consumer.Consume(listener.Event{Type: listener.TypeBuy,
 									Hash:    tx.Hash,
 									From:    tx.From,
 									FeeCoin: tx.GasCoin,
 									Fee:     fee,
-									SendEvent: SendEvent{
+									SendEvent: listener.SendEvent{
 										ToCoin: buy.CoinToBuy,
 										Coin:   buy.CoinToSell,
 										Amount: amount,
@@ -419,8 +420,8 @@ func (ma *MinterAdapter) Subscribe(_ context.Context, consumer EventConsumer) er
 						}
 						lastBlockHeight, _ := strconv.ParseInt(block.Height, 10, 32)
 						ma.lastBlockHeight = int(lastBlockHeight)
-						for _, listener := range ma.blockListeners {
-							listener(ma.lastBlockHeight, len(block.Transactions))
+						for _, lnr := range ma.blockListeners {
+							lnr(ma.lastBlockHeight, len(block.Transactions))
 						}
 					}
 				}

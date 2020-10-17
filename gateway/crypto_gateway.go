@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"github.com/Askadias/banker-util/gateway/listener"
 )
 
 type Adapter interface {
@@ -14,7 +15,7 @@ type Adapter interface {
 	Send(ctx context.Context, w Wallet, coin string, amount float64, address string) (string, error)
 	EstimateMultiSendFee(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (float64, float64, error)
 	MultiSend(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (string, error)
-	Subscribe(ctx context.Context, consumer EventConsumer) error
+	Subscribe(ctx context.Context, consumer listener.EventConsumer) error
 	IsTransactionComplete(ctx context.Context, hash string) bool
 	Unsubscribe()
 }
@@ -161,7 +162,7 @@ func (ch *CryptoHub) IsTransactionComplete(ctx context.Context, baseCoin string,
 	}
 }
 
-func (ch *CryptoHub) SubscribeAll(ctx context.Context, consumer EventConsumer) error {
+func (ch *CryptoHub) SubscribeAll(ctx context.Context, consumer listener.EventConsumer) error {
 	for baseCoin, adapter := range ch.BlockChains {
 		if err := adapter.Subscribe(ctx, consumer); err != nil {
 			return fmt.Errorf("unable to subscribe to %s blockchain", baseCoin)
@@ -176,7 +177,7 @@ func (ch *CryptoHub) UnsubscribeAll() {
 	}
 }
 
-func (ch *CryptoHub) Subscribe(ctx context.Context, baseCoin string, consumer EventConsumer) error {
+func (ch *CryptoHub) Subscribe(ctx context.Context, baseCoin string, consumer listener.EventConsumer) error {
 	if adapter, ok := ch.BlockChains[baseCoin]; ok {
 		if err := adapter.Subscribe(ctx, consumer); err != nil {
 			return fmt.Errorf("unable to subscribe to %s blockchain", baseCoin)

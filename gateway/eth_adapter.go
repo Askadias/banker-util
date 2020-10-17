@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"github.com/Askadias/banker-util/gateway/eth"
+	"github.com/Askadias/banker-util/gateway/listener"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -551,7 +552,7 @@ func (ea *EthereumAdapter) ConfigureTransactionContract(
 	}, nil
 }
 
-func (ea *EthereumAdapter) Subscribe(ctx context.Context, consumer EventConsumer) error {
+func (ea *EthereumAdapter) Subscribe(ctx context.Context, consumer listener.EventConsumer) error {
 	headers := make(chan *types.Header)
 	var err error
 	ea.blockSubscription, err = ea.client.SubscribeNewHead(ctx, headers)
@@ -578,7 +579,7 @@ type contractConfig struct {
 	decimals int
 }
 
-func (ea *EthereumAdapter) handleBlockEvents(consumer EventConsumer, headers chan *types.Header) error {
+func (ea *EthereumAdapter) handleBlockEvents(consumer listener.EventConsumer, headers chan *types.Header) error {
 	var tokenContracts = map[string]contractConfig{}
 	for token, conf := range tokens {
 		tokenContracts[conf.address] = contractConfig{coin: token, decimals: conf.decimals}
@@ -587,11 +588,11 @@ func (ea *EthereumAdapter) handleBlockEvents(consumer EventConsumer, headers cha
 	for {
 		select {
 		case err := <-ea.blockSubscription.Err():
-			consumer.Consume(Event{Error: err})
+			consumer.Consume(listener.Event{Error: err})
 		case header := <-headers:
 			block, err := ea.client.BlockByHash(context.Background(), header.Hash())
 			if err != nil {
-				consumer.Consume(Event{Error: err})
+				consumer.Consume(listener.Event{Error: err})
 			}
 			if block != nil && block.Transactions() != nil {
 				for _, tx := range block.Transactions() {
@@ -600,7 +601,7 @@ func (ea *EthereumAdapter) handleBlockEvents(consumer EventConsumer, headers cha
 						to := tx.To().Hex()
 						fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(tx.Gas())), tx.GasPrice()), ETHDecimal).Float64()
 						if tokenConf, ok := tokenContracts[strings.ToLower(to)]; ok {
-							event, err := ea.parseTokenSendEvent(tx, fromAddr.Hex(), tokenConf)
+							event, err := ea.parseTokenEvent(tx, fromAddr.Hex(), tokenConf)
 							if err != nil {
 								continue
 							}
@@ -613,13 +614,13 @@ func (ea *EthereumAdapter) handleBlockEvents(consumer EventConsumer, headers cha
 							consumer.Consume(event)
 						} else {
 							amount, _ := weiToEther(tx.Value(), ETHDecimal).Float64()
-							consumer.Consume(Event{
-								Type:    TypeSend,
+							consumer.Consume(listener.Event{
+								Type:    listener.TypeSend,
 								FeeCoin: "ETH",
 								Fee:     fee,
 								Hash:    tx.Hash().Hex(),
 								From:    fromAddr.Hex(),
-								SendEvent: SendEvent{
+								SendEvent: listener.SendEvent{
 									Amount: amount,
 									Coin:   "ETH",
 									To:     to,
@@ -633,33 +634,33 @@ func (ea *EthereumAdapter) handleBlockEvents(consumer EventConsumer, headers cha
 	}
 }
 
-func (ea *EthereumAdapter) parseTokenSendEvent(tx *types.Transaction, fromAddr string, tokenConf contractConfig) (Event, error) {
-	transferData, err := eth.UnpackTransferData(tx.Data())
+func (ea *EthereumAdapter) parseTokenEvent(tx *types.Transaction, fromAddr string, tokenConf contractConfig) (listener.Event, error) {
+	eventInput, err := eth.UnpackEventData(tx.Data())
 	fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(tx.Gas())), tx.GasPrice()), ETHDecimal).Float64()
 	if err != nil {
-		return Event{}, err
+		return listener.Event{}, err
 	}
 
-	amount, _ := weiToEther(transferData.Amount, tokenConf.decimals).Float64()
-	return Event{
-		Type:    TypeSend,
+	amount, _ := weiToEther(eventInput.Amount, tokenConf.decimals).Float64()
+	return listener.Event{
+		Type:    eventInput.Type,
 		FeeCoin: "ETH",
 		Fee:     fee,
 		Hash:    tx.Hash().Hex(),
 		From:    fromAddr,
-		SendEvent: SendEvent{
+		SendEvent: listener.SendEvent{
 			Amount: amount,
 			Coin:   tokenConf.coin,
-			To:     transferData.Recipient.Hex(),
+			To:     eventInput.Recipient.Hex(),
 		},
 	}, nil
 }
 
-func (ea *EthereumAdapter) parseMultisendEvent(tx *types.Transaction, fromAddr string, tokenContracts map[string]contractConfig) (Event, error) {
+func (ea *EthereumAdapter) parseMultisendEvent(tx *types.Transaction, fromAddr string, tokenContracts map[string]contractConfig) (listener.Event, error) {
 	fee, _ := weiToEther(big.NewInt(0).Mul(big.NewInt(int64(tx.Gas())), tx.GasPrice()), ETHDecimal).Float64()
 	method, err := eth.GetMultisendMethod(tx.Data())
 	if err != nil {
-		return Event{}, err
+		return listener.Event{}, err
 	}
 
 	coin := "ETH"
@@ -669,7 +670,7 @@ func (ea *EthereumAdapter) parseMultisendEvent(tx *types.Transaction, fromAddr s
 	if method == "bulkSendEth" {
 		bulkSendETHInput, err := eth.UnpackBulkSendETHData(tx.Data())
 		if err != nil {
-			return Event{}, err
+			return listener.Event{}, err
 		}
 
 		addresses = bulkSendETHInput.Addresses
@@ -677,33 +678,33 @@ func (ea *EthereumAdapter) parseMultisendEvent(tx *types.Transaction, fromAddr s
 	} else if method == "bulkSendToken" {
 		bulkSendTokenInput, err := eth.UnpackBulkSendTokenData(tx.Data())
 		if err != nil {
-			return Event{}, err
+			return listener.Event{}, err
 		}
 
 		addresses = bulkSendTokenInput.Addresses
 		amounts = bulkSendTokenInput.Amounts
 		tokenConf, ok := tokenContracts[strings.ToLower(bulkSendTokenInput.Token.Hex())]
 		if !ok {
-			return Event{}, fmt.Errorf("token not supported")
+			return listener.Event{}, fmt.Errorf("token not supported")
 		}
 
 		decimals = tokenConf.decimals
 		coin = tokenConf.coin
 	} else {
-		return Event{}, fmt.Errorf("contract metnod not supported")
+		return listener.Event{}, fmt.Errorf("contract metnod not supported")
 	}
 
-	var items []SendEvent
+	var items []listener.SendEvent
 	for i, address := range addresses {
 		amount, _ := weiToEther(amounts[i], decimals).Float64()
-		items = append(items, SendEvent{
+		items = append(items, listener.SendEvent{
 			Amount: amount,
 			Coin:   coin,
 			To:     address.Hex(),
 		})
 	}
-	return Event{
-		Type:    TypeMultisend,
+	return listener.Event{
+		Type:    listener.TypeMultisend,
 		FeeCoin: "ETH",
 		Fee:     fee,
 		Hash:    tx.Hash().Hex(),

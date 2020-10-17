@@ -3,6 +3,7 @@ package eth
 import (
 	"context"
 	"fmt"
+	"github.com/Askadias/banker-util/gateway/listener"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
@@ -36,25 +37,30 @@ func PackApproveData(_spender common.Address, _value *big.Int) ([]byte, error) {
 	return TokenABIJSON.Pack("approve", _spender, _value)
 }
 
-type TransferInput struct {
+type EventInput struct {
+	Type      listener.EventType
 	Recipient common.Address
 	Amount    *big.Int
 }
 
-func UnpackTransferData(data []byte) (TransferInput, error) {
-	var transferInput TransferInput
+func UnpackEventData(data []byte) (EventInput, error) {
+	var input EventInput
 	method, err := TokenABIJSON.MethodById(data)
 	if err != nil {
-		return TransferInput{}, err
+		return EventInput{}, err
 	}
-	if method.Name != "transfer" {
-		return TransferInput{}, fmt.Errorf("wrong method")
+	if method.Name == "transfer" {
+		input.Type = listener.TypeSend
+	} else if method.Name == "approve" {
+		input.Type = listener.TypeApprove
+	} else {
+		return EventInput{}, fmt.Errorf("wrong method")
 	}
-	err = method.Inputs.Unpack(&transferInput, data[4:])
+	err = method.Inputs.Unpack(&input, data[4:])
 	if err != nil {
-		return TransferInput{}, err
+		return EventInput{}, err
 	}
-	return transferInput, nil
+	return input, nil
 }
 
 type BulkSendETHInput struct {
