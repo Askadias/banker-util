@@ -14,8 +14,8 @@ const (
 	// TokenABI is the input ABI used to generate the binding from.
 	MultiSendContractAddress = "0x96AF6B6c38636512075754066327d96F5cEDc81c"
 	GWEIDecimal              = 9
-	Decimal               = 18
-	DerivationPath        = "m/44'/60'/0'/0/0"
+	Decimal                  = 18
+	DerivationPath           = "m/44'/60'/0'/0/0"
 	GasPriceKey              = "GasPrice"
 )
 
@@ -43,9 +43,19 @@ func PackApproveData(_spender common.Address, _value *big.Int) ([]byte, error) {
 }
 
 type EventInput struct {
+	Address common.Address
+	Amount  *big.Int
+	Type    listener.EventType
+}
+
+type transferInput struct {
 	Recipient common.Address
 	Amount    *big.Int
-	Type      listener.EventType
+}
+
+type approveInput struct {
+	Spender common.Address
+	Amount  *big.Int
 }
 
 func UnpackEventData(data []byte) (EventInput, error) {
@@ -54,16 +64,23 @@ func UnpackEventData(data []byte) (EventInput, error) {
 	if err != nil {
 		return EventInput{}, err
 	}
-	if method.Name != "transfer" && method.Name != "approve" {
-		return EventInput{}, fmt.Errorf("wrong method")
-	}
-	err = method.Inputs.Unpack(&input, data[4:])
-	if err != nil {
-		return EventInput{}, err
-	}
 	if method.Name == "transfer" {
+		var in transferInput
+		err = method.Inputs.Unpack(&in, data[4:])
+		if err != nil {
+			return EventInput{}, err
+		}
+		input.Address = in.Recipient
+		input.Amount = in.Amount
 		input.Type = listener.TypeSend
-	} else if method.Name == "approve" && input.Recipient.Hex() == MultiSendContractAddress {
+	} else if method.Name == "approve" && input.Address.Hex() == MultiSendContractAddress {
+		var in approveInput
+		err = method.Inputs.Unpack(&in, data[4:])
+		if err != nil {
+			return EventInput{}, err
+		}
+		input.Address = in.Spender
+		input.Amount = in.Amount
 		input.Type = listener.TypeApprove
 	} else {
 		return EventInput{}, fmt.Errorf("unsupported event")

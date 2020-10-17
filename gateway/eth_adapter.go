@@ -643,7 +643,7 @@ func (ea *EthereumAdapter) parseTokenEvent(tx *types.Transaction, fromAddr strin
 		SendEvent: listener.SendEvent{
 			Amount: amount,
 			Coin:   tokenConf.coin,
-			To:     eventInput.Recipient.Hex(),
+			To:     eventInput.Address.Hex(),
 		},
 	}, nil
 }
