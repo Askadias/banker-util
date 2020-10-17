@@ -10,8 +10,13 @@ import (
 	"strings"
 )
 
-var (
-	GasPriceKey = "GasPrice"
+const (
+	// TokenABI is the input ABI used to generate the binding from.
+	MultiSendContractAddress = "0x96AF6B6c38636512075754066327d96F5cEDc81c"
+	GWEIDecimal              = 9
+	Decimal               = 18
+	DerivationPath        = "m/44'/60'/0'/0/0"
+	GasPriceKey              = "GasPrice"
 )
 
 func GetGasPrice(ctx context.Context) float64 {
@@ -38,9 +43,9 @@ func PackApproveData(_spender common.Address, _value *big.Int) ([]byte, error) {
 }
 
 type EventInput struct {
-	Type      listener.EventType
 	Recipient common.Address
 	Amount    *big.Int
+	Type      listener.EventType
 }
 
 func UnpackEventData(data []byte) (EventInput, error) {
@@ -49,16 +54,19 @@ func UnpackEventData(data []byte) (EventInput, error) {
 	if err != nil {
 		return EventInput{}, err
 	}
-	if method.Name == "transfer" {
-		input.Type = listener.TypeSend
-	} else if method.Name == "approve" {
-		input.Type = listener.TypeApprove
-	} else {
+	if method.Name != "transfer" && method.Name != "approve" {
 		return EventInput{}, fmt.Errorf("wrong method")
 	}
 	err = method.Inputs.Unpack(&input, data[4:])
 	if err != nil {
 		return EventInput{}, err
+	}
+	if method.Name == "transfer" {
+		input.Type = listener.TypeSend
+	} else if method.Name == "approve" && input.Recipient.Hex() == MultiSendContractAddress {
+		input.Type = listener.TypeApprove
+	} else {
+		return EventInput{}, fmt.Errorf("unsupported event")
 	}
 	return input, nil
 }
