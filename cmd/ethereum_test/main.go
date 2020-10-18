@@ -16,7 +16,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ethereum := gateway.NewEthereumAdapter(ethereumClient, 0)
+	ethereum := gateway.NewEthereumAdapter(ethereumClient, 0, 15)
 	hub := gateway.NewCryptoHub(map[string]gateway.Adapter{
 		"ETH": ethereum,
 	})
@@ -34,6 +34,7 @@ func main() {
 			fmt.Println("Transaction complete:", hub.IsTransactionComplete(ctx, "ETH", event.Hash))
 		}
 	}))
+	//select {}
 
 	//hash := hub.MustSend(ctx, "ETH", sourceWallet, "USDT", 0.1, targetWallet.Address)
 	//fmt.Printf("Transaction Send USDT: https://etherscan.io/tx/%s\n", hash)
@@ -48,6 +49,13 @@ func main() {
 	//
 	//fmt.Printf("Contract address: %s\n", address)
 	//fmt.Printf("Transaction: https://etherscan.io/tx/%s\n", contractHash)
+	// ==============================================================================================
+	// APPROVE USDT
+	//hash, err := ethereum.ApproveTokenMultisend(ctx, targetWallet, "USDT")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Printf("Transaction USDT Approval: https://etherscan.io/tx/%s\n", hash)
 
 	// ==============================================================================================
 	// CREATE WALLET
