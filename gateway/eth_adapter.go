@@ -36,17 +36,19 @@ var (
 type EthereumAdapter struct {
 	baseCoin              string
 	client                *ethclient.Client
+	accelerationPercent   float64
 	gasPrice              *big.Int
 	blockSubscription     ethereum.Subscription
 	multisendSubscription ethereum.Subscription
 	tokenSubscriptions    map[string]ethereum.Subscription
 }
 
-func NewEthereumAdapter(ethereumClient *ethclient.Client, gasPriceGwei float64) *EthereumAdapter {
+func NewEthereumAdapter(ethereumClient *ethclient.Client, gasPriceGwei float64, accelerationPercent float64) *EthereumAdapter {
 	return &EthereumAdapter{
-		baseCoin: "ETH",
-		client:   ethereumClient,
-		gasPrice: etherToWei(gasPriceGwei, eth.GWEIDecimal),
+		baseCoin:            "ETH",
+		client:              ethereumClient,
+		accelerationPercent: accelerationPercent,
+		gasPrice:            etherToWei(gasPriceGwei, eth.GWEIDecimal),
 	}
 }
 
@@ -57,6 +59,15 @@ func (ea *EthereumAdapter) getGasPrice(ctx context.Context) *big.Int {
 	gasPrice, err := ea.client.SuggestGasPrice(ctx)
 	if err != nil {
 		return etherToWei(10, eth.GWEIDecimal)
+	}
+	if ea.accelerationPercent > 0 {
+		acceleration := ea.accelerationPercent / 100
+		accelerator := new(big.Float)
+		accelerator.SetInt(gasPrice)
+		accelerator.Mul(accelerator, big.NewFloat(acceleration))
+		percent := new(big.Int)
+		accelerator.Int(percent)
+		gasPrice.Add(gasPrice, percent)
 	}
 	return gasPrice
 }
