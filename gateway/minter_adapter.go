@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/Askadias/banker-util/gateway/listener"
 	"github.com/MinterTeam/minter-go-sdk/api"
@@ -240,7 +239,6 @@ func (ma *MinterAdapter) Send(c context.Context, w Wallet, coin string, amount f
 		}
 		res, err := ma.client.SendTransaction(api_service.NewSendTransactionParams().WithTx(encode))
 		if err != nil {
-			err = tryParseError(err)
 			if isTransactionInMempool(err) {
 				time.Sleep(1 * time.Second)
 				continue
@@ -320,7 +318,6 @@ func (ma *MinterAdapter) MultiSend(c context.Context, w Wallet, coin string, add
 		}
 		res, err := ma.client.SendTransaction(api_service.NewSendTransactionParamsWithContext(c).WithTx(encode))
 		if err != nil {
-			err = tryParseError(err)
 			if isTransactionInMempool(err) {
 				time.Sleep(1 * time.Second)
 				continue
@@ -514,22 +511,10 @@ func bipToCoin(bip float64) *big.Int {
 	return val
 }
 
-func tryParseError(err error) error {
-	if txErr, ok := err.(*api.ResponseError); ok { //Tx already exists in mempool
-		response := new(api.SendTransactionResponse)
-		err = json.Unmarshal(txErr.Body(), response)
-		if err == nil {
-			return response.Error
-		}
-	}
-	return err
-}
-
 func isTransactionInMempool(err error) bool {
-	if txErr, ok := err.(*api.TxError); ok { //Tx already exists in mempool
-		if txErr.TxResult.Code == 113 {
-			return true
-		}
+	_, body, e := http_client.ErrorBody(err)
+	if e == nil && body != nil && body.Error.Code == "113" { //Tx already exists in mempool
+		return true
 	}
 	return false
 }
