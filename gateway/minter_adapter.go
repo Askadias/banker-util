@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/Askadias/banker-util/gateway/listener"
-	"github.com/MinterTeam/minter-go-sdk/api"
 	"github.com/MinterTeam/minter-go-sdk/v2/api/http_client"
 	"github.com/MinterTeam/minter-go-sdk/v2/api/http_client/client/api_service"
+	"github.com/MinterTeam/minter-go-sdk/v2/api/http_client/models"
 	"github.com/MinterTeam/minter-go-sdk/v2/transaction"
 	"github.com/MinterTeam/minter-go-sdk/v2/wallet"
 	"math"
@@ -92,7 +92,7 @@ func pstr(val string) *string {
 
 func (ma *MinterAdapter) EstimateBuy(c context.Context, coin string, amount float64) (float64, float64, error) {
 	res, err := ma.client.EstimateCoinBuy(api_service.NewEstimateCoinBuyParamsWithContext(c).
-		WithCoinToSell(pstr("BIP")).WithCoinToBuy(&coin).WithValueToBuy(pstr(bipToCoin(amount).String())))
+		WithCoinToSell(pstr("BIP")).WithCoinToBuy(&coin).WithValueToBuy(bipToCoin(amount).String()))
 	if err != nil {
 		return 0, 0, fmt.Errorf("unable to buy coin %s: %v", coin, err)
 	}
@@ -393,12 +393,12 @@ func (ma *MinterAdapter) Subscribe(c context.Context, consumer listener.EventCon
 							bigFee.SetUint64(tx.Gas)
 							fee, _ := pipToBIP(big.NewInt(0).Mul(bigFee, big.NewInt(1000000000000000)).String()).Float64()
 							fee = fee * float64(tx.GasPrice)
+							data, err := models.ConvertToData(tx.Type, tx.Data)
+							if err != nil {
+								consumer.Consume(listener.Event{Error: err})
+							}
 							if tx.Type == uint64(transaction.TypeMultisend) {
-								msend := &api.MultisendData{}
-								err := tx.Data.UnmarshalTo(msend)
-								if err != nil {
-									consumer.Consume(listener.Event{Error: err})
-								}
+								msend := data.(*models.MultiSendData)
 								var items []listener.SendEvent
 								for _, item := range msend.List {
 									amount, _ := pipToBIP(item.Value).Float64()
@@ -420,11 +420,7 @@ func (ma *MinterAdapter) Subscribe(c context.Context, consumer listener.EventCon
 									Items:   items,
 								})
 							} else if tx.Type == uint64(transaction.TypeSend) {
-								send := &api.SendData{}
-								err := tx.Data.UnmarshalTo(send)
-								if err != nil {
-									consumer.Consume(listener.Event{Error: err})
-								}
+								send := data.(*models.SendData)
 								amount, _ := pipToBIP(send.Value).Float64()
 								if err != nil {
 									consumer.Consume(listener.Event{Error: err})
@@ -440,11 +436,7 @@ func (ma *MinterAdapter) Subscribe(c context.Context, consumer listener.EventCon
 										Amount: amount,
 									}})
 							} else if tx.Type == uint64(transaction.TypeBuyCoin) {
-								buy := &api.BuyCoinData{}
-								err := tx.Data.UnmarshalTo(buy)
-								if err != nil {
-									consumer.Consume(listener.Event{Error: err})
-								}
+								buy := data.(*models.BuyCoinData)
 								amount, _ := pipToBIP(buy.ValueToBuy).Float64()
 								if err != nil {
 									consumer.Consume(listener.Event{Error: err})

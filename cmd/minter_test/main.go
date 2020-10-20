@@ -31,6 +31,7 @@ func main() {
 			fmt.Println("Transaction complete:", hub.IsTransactionComplete(ctx, "BIP", event.Hash))
 		}
 	}))
+	select {}
 
 	//hash := hub.MustSend(ctx, "BIP", sourceWallet, "BIP", 1, targetWallet.Address)
 	//fmt.Printf("Transaction MultiSend BIP: https://minterscan.net/tx/%s\n", hash)
