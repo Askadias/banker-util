@@ -76,7 +76,7 @@ func (ma *MinterAdapter) GetBalance(c context.Context, address string) (map[stri
 		return balance, fmt.Errorf("unable to get balance: %v", err)
 	}
 	for _, b := range addr.Payload.Balance {
-		balanceVal, _, err := big.ParseFloat(b.BipValue, 10, 0, big.ToNegativeInf)
+		balanceVal, _, err := big.ParseFloat(b.Value, 10, 0, big.ToNegativeInf)
 		if err != nil {
 			return balance, fmt.Errorf("unable to parse %s balance: %v", b.Coin.Symbol, err)
 		}
@@ -333,9 +333,10 @@ func (ma *MinterAdapter) MultiSend(c context.Context, w Wallet, coin string, add
 
 func (ma *MinterAdapter) prepareMultiSendTx(c context.Context, w Wallet, coin string, addresses []string, amounts []float64) (transaction.Signed, uint64, error) {
 	data := transaction.NewMultisendData()
+	coinID := ma.CoinID(coin)
 	for i := 0; i < len(addresses); i++ {
 		item , err := transaction.NewSendData().
-			SetCoin(ma.CoinID(coin)).
+			SetCoin(coinID).
 			SetValue(bipToCoin(amounts[i])).
 			SetTo(addresses[i])
 		if err != nil {
