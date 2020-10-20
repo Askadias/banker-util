@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"github.com/Askadias/banker-util/gateway"
 	"github.com/Askadias/banker-util/gateway/listener"
-	"github.com/MinterTeam/minter-go-sdk/api"
-	"github.com/go-resty/resty/v2"
+	"github.com/MinterTeam/minter-go-sdk/v2/api/http_client"
 	"os"
 	"time"
 )
 
 func main() {
-	minterClient := api.NewApiWithClient(os.Getenv("MINTER_HOST"), resty.New())
-	minterPollingClient := api.NewApiWithClient(os.Getenv("MINTER_POLLING_HOST"), resty.New())
+	minterClient, _ := http_client.New(os.Getenv("MINTER_HOST"))
+	minterPollingClient, _ := http_client.New(os.Getenv("MINTER_POLLING_HOST"))
 	minter := gateway.NewMinterAdapter(minterClient, minterPollingClient, 2*time.Second)
 	hub := gateway.NewCryptoHub(map[string]gateway.Adapter{
 		"BIP": minter,
