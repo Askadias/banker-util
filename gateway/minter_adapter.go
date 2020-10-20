@@ -159,7 +159,7 @@ func (ma *MinterAdapter) Buy(c context.Context, w Wallet, coin string, amount fl
 		return "", fmt.Errorf("unable to buy coin %s: %v", coin, err)
 	}
 
-	return "Mt" + strings.ToLower(res.Payload.Hash), nil
+	return res.Payload.Hash, nil
 }
 
 func (ma *MinterAdapter) SellAll(c context.Context, w Wallet, coin string) (string, error) {
@@ -198,7 +198,7 @@ func (ma *MinterAdapter) SellAll(c context.Context, w Wallet, coin string) (stri
 	if err != nil {
 		return "", fmt.Errorf("unable to sell coin %s: %v", coin, err)
 	}
-	return "Mt" + strings.ToLower(res.Payload.Hash), nil
+	return res.Payload.Hash, nil
 }
 
 func (ma *MinterAdapter) EstimateSendFee(c context.Context, w Wallet, coin string, amount float64, address string) (float64, float64, error) {
@@ -245,7 +245,7 @@ func (ma *MinterAdapter) Send(c context.Context, w Wallet, coin string, amount f
 			}
 			return "", fmt.Errorf("unable to send coin %s to %s: %v", coin, address, err)
 		}
-		return "Mt" + strings.ToLower(res.Payload.Hash), nil
+		return res.Payload.Hash, nil
 	}
 }
 
@@ -324,7 +324,7 @@ func (ma *MinterAdapter) MultiSend(c context.Context, w Wallet, coin string, add
 			}
 			return "", fmt.Errorf("unable to multisendsend coin %s to %v: %v", coin, addresses, err)
 		}
-		return "Mt" + strings.ToLower(res.Payload.Hash), nil
+		return res.Payload.Hash, nil
 	}
 }
 
