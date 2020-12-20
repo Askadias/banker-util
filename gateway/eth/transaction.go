@@ -154,7 +154,7 @@ func bindTransaction(address common.Address, caller bind.ContractCaller, transac
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_Transaction *TransactionRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_Transaction *TransactionRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _Transaction.Contract.TransactionCaller.contract.Call(opts, result, method, params...)
 }
 
@@ -173,7 +173,7 @@ func (_Transaction *TransactionRaw) Transact(opts *bind.TransactOpts, method str
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_Transaction *TransactionCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_Transaction *TransactionCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _Transaction.Contract.contract.Call(opts, result, method, params...)
 }
 
@@ -192,12 +192,9 @@ func (_Transaction *TransactionTransactorRaw) Transact(opts *bind.TransactOpts, 
 //
 // Solidity: function feePerc() constant returns(uint8)
 func (_Transaction *TransactionCaller) FeePerc(opts *bind.CallOpts) (uint8, error) {
-	var (
-		ret0 = new(uint8)
-	)
-	out := ret0
-	err := _Transaction.contract.Call(opts, out, "feePerc")
-	return *ret0, err
+	var results []interface{}
+	err := _Transaction.contract.Call(opts, &results, "feePerc")
+	return results[0].(uint8), err
 }
 
 // FeePerc is a free data retrieval call binding the contract method 0xef41ea7e.
@@ -218,12 +215,9 @@ func (_Transaction *TransactionCallerSession) FeePerc() (uint8, error) {
 //
 // Solidity: function getbalance(address addr) constant returns(uint256 value)
 func (_Transaction *TransactionCaller) Getbalance(opts *bind.CallOpts, addr common.Address) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _Transaction.contract.Call(opts, out, "getbalance", addr)
-	return *ret0, err
+	var results []interface{}
+	err := _Transaction.contract.Call(opts, &results, "getbalance", addr)
+	return results[0].(*big.Int), err
 }
 
 // Getbalance is a free data retrieval call binding the contract method 0x68116177.
@@ -244,12 +238,9 @@ func (_Transaction *TransactionCallerSession) Getbalance(addr common.Address) (*
 //
 // Solidity: function internalFeePerc() constant returns(uint8)
 func (_Transaction *TransactionCaller) InternalFeePerc(opts *bind.CallOpts) (uint8, error) {
-	var (
-		ret0 = new(uint8)
-	)
-	out := ret0
-	err := _Transaction.contract.Call(opts, out, "internalFeePerc")
-	return *ret0, err
+	var results []interface{}
+	err := _Transaction.contract.Call(opts, &results, "internalFeePerc")
+	return results[0].(uint8), err
 }
 
 // InternalFeePerc is a free data retrieval call binding the contract method 0xb4223c73.
@@ -270,12 +261,9 @@ func (_Transaction *TransactionCallerSession) InternalFeePerc() (uint8, error) {
 //
 // Solidity: function owner() constant returns(address)
 func (_Transaction *TransactionCaller) Owner(opts *bind.CallOpts) (common.Address, error) {
-	var (
-		ret0 = new(common.Address)
-	)
-	out := ret0
-	err := _Transaction.contract.Call(opts, out, "owner")
-	return *ret0, err
+	var results []interface{}
+	err := _Transaction.contract.Call(opts, &results, "owner")
+	return results[0].(common.Address), err
 }
 
 // Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
@@ -296,12 +284,9 @@ func (_Transaction *TransactionCallerSession) Owner() (common.Address, error) {
 //
 // Solidity: function rewardPerc() constant returns(uint8)
 func (_Transaction *TransactionCaller) RewardPerc(opts *bind.CallOpts) (uint8, error) {
-	var (
-		ret0 = new(uint8)
-	)
-	out := ret0
-	err := _Transaction.contract.Call(opts, out, "rewardPerc")
-	return *ret0, err
+	var results []interface{}
+	err := _Transaction.contract.Call(opts, &results, "rewardPerc")
+	return results[0].(uint8), err
 }
 
 // RewardPerc is a free data retrieval call binding the contract method 0x8534ec23.

@@ -154,7 +154,7 @@ func bindMultisend(address common.Address, caller bind.ContractCaller, transacto
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_Multisend *MultisendRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_Multisend *MultisendRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _Multisend.Contract.MultisendCaller.contract.Call(opts, result, method, params...)
 }
 
@@ -173,7 +173,7 @@ func (_Multisend *MultisendRaw) Transact(opts *bind.TransactOpts, method string,
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_Multisend *MultisendCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_Multisend *MultisendCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _Multisend.Contract.contract.Call(opts, result, method, params...)
 }
 
@@ -192,12 +192,9 @@ func (_Multisend *MultisendTransactorRaw) Transact(opts *bind.TransactOpts, meth
 //
 // Solidity: function _owner() constant returns(address)
 func (_Multisend *MultisendCaller) Owner(opts *bind.CallOpts) (common.Address, error) {
-	var (
-		ret0 = new(common.Address)
-	)
-	out := ret0
-	err := _Multisend.contract.Call(opts, out, "_owner")
-	return *ret0, err
+	var results []interface{}
+	err := _Multisend.contract.Call(opts, &results , "_owner")
+	return results[0].(common.Address), err
 }
 
 // Owner is a free data retrieval call binding the contract method 0xb2bdfa7b.

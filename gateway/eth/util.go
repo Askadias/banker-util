@@ -48,16 +48,6 @@ type EventInput struct {
 	Type    listener.EventType
 }
 
-type transferInput struct {
-	Recipient common.Address
-	Amount    *big.Int
-}
-
-type approveInput struct {
-	Spender common.Address
-	Amount  *big.Int
-}
-
 func UnpackEventData(data []byte) (EventInput, error) {
 	var input EventInput
 	method, err := TokenABIJSON.MethodById(data)
@@ -65,22 +55,20 @@ func UnpackEventData(data []byte) (EventInput, error) {
 		return EventInput{}, err
 	}
 	if method.Name == "transfer" {
-		var in transferInput
-		err = method.Inputs.Unpack(&in, data[4:])
+		res, err := method.Inputs.Unpack(data[4:])
 		if err != nil {
 			return EventInput{}, err
 		}
-		input.Address = in.Recipient
-		input.Amount = in.Amount
+		input.Address = res[0].(common.Address)
+		input.Amount = res[1].(*big.Int)
 		input.Type = listener.TypeSend
 	} else if method.Name == "approve" && input.Address.Hex() == MultiSendContractAddress {
-		var in approveInput
-		err = method.Inputs.Unpack(&in, data[4:])
+		res, err := method.Inputs.Unpack(data[4:])
 		if err != nil {
 			return EventInput{}, err
 		}
-		input.Address = in.Spender
-		input.Amount = in.Amount
+		input.Address = res[0].(common.Address)
+		input.Amount = res[1].(*big.Int)
 		input.Type = listener.TypeApprove
 	} else {
 		return EventInput{}, fmt.Errorf("unsupported event")
@@ -125,8 +113,10 @@ func UnpackBulkSendETHData(data []byte) (BulkSendETHInput, error) {
 	if method.Name != "bulkSendEth" {
 		return BulkSendETHInput{}, fmt.Errorf("wrong method")
 	}
+	res, err := method.Inputs.Unpack(data[4:])
 	var bulkSendETHInput BulkSendETHInput
-	err = method.Inputs.Unpack(&bulkSendETHInput, data[4:])
+	bulkSendETHInput.Addresses = res[0].([]common.Address)
+	bulkSendETHInput.Amounts = res[1].([]*big.Int)
 	if err != nil {
 		return BulkSendETHInput{}, err
 	}
@@ -141,8 +131,11 @@ func UnpackBulkSendTokenData(data []byte) (BulkSendTokenInput, error) {
 	if method.Name != "bulkSendToken" {
 		return BulkSendTokenInput{}, fmt.Errorf("wrong method")
 	}
+	res, err := method.Inputs.Unpack(data[4:])
 	var bulkSendTokenInput BulkSendTokenInput
-	err = method.Inputs.Unpack(&bulkSendTokenInput, data[4:])
+	bulkSendTokenInput.Token = res[0].(common.Address)
+	bulkSendTokenInput.Addresses = res[1].([]common.Address)
+	bulkSendTokenInput.Amounts = res[2].([]*big.Int)
 	if err != nil {
 		return BulkSendTokenInput{}, err
 	}

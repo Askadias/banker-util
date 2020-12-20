@@ -76,7 +76,7 @@ func main() {
 	gasPriceETH := 0.0
 	gasPriceUSDT := 0.0
 	multiETHWallets := []string{targetWallet.Address, targetWallet.Address}
-	multiETHAmounts := []float64{0.01, 0.01}
+	multiETHAmounts := []float64{0.001, 0.001}
 	multiUSDTWallets := []string{targetWallet.Address, targetWallet.Address}
 	multiUSDTAmounts := []float64{2, 0.02}
 	estimatedETH, gasPriceETH := hub.MustEstimateMultiSendFee(ctx, "ETH", sourceWallet, "ETH", multiETHWallets, multiETHAmounts)

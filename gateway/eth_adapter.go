@@ -183,8 +183,8 @@ func (ea *EthereumAdapter) EstimateSendFee(ctx context.Context, w Wallet, coin s
 	}
 
 	if coin == "ETH" {
-		to := common.HexToAddress(address)
-		msg := ethereum.CallMsg{From: from, To: &to, GasPrice: price, Value: etherToWei(amount, eth.Decimal), Data: nil}
+		gp, _ := ea.client.SuggestGasPrice(ctx)
+		msg := ethereum.CallMsg{From: from, To: &from, GasPrice: gp, Value: etherToWei(amount, eth.Decimal)}
 		estimatedFee, err := ea.client.EstimateGas(ctx, msg)
 		if err != nil {
 			return 0, 0, fmt.Errorf("unable to estimate gas price: %v", err)
@@ -264,6 +264,7 @@ func (ea *EthereumAdapter) Send(ctx context.Context, w Wallet, coin string, amou
 		opts := bind.NewKeyedTransactor(key)
 		opts.Context = ctx
 		opts.GasPrice = price
+		opts.GasLimit = uint64(100000)
 		tx, err := caller.Transfer(opts, common.HexToAddress(address), etherToWei(amount, tokenConf.decimals))
 		if err != nil {
 			return "", fmt.Errorf("unable to sent transaction: %v", err)
