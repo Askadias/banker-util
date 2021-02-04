@@ -16,6 +16,7 @@ import (
 )
 
 const (
+	ValuableDecimals = 6
 	BIPDecimal = 18.0
 )
 
@@ -392,18 +393,14 @@ func (ma *MinterAdapter) Subscribe(c context.Context, consumer listener.EventCon
 							bigFee.SetUint64(tx.Gas)
 							fee, _ := pipToBIP(big.NewInt(0).Mul(bigFee, big.NewInt(1000000000000000)).String()).Float64()
 							fee = fee * float64(tx.GasPrice)
-							data, err := models.ConvertToData(tx.Type, tx.Data)
-							if err != nil {
-								consumer.Consume(listener.Event{Error: err})
-							}
 							if tx.Type == uint64(transaction.TypeMultisend) {
-								msend := data.(*models.MultiSendData)
+								msend := new(models.MultiSendData)
+								if err := tx.Data.UnmarshalTo(msend); err != nil {
+									consumer.Consume(listener.Event{Error: err})
+								}
 								var items []listener.SendEvent
 								for _, item := range msend.List {
 									amount, _ := pipToBIP(item.Value).Float64()
-									if err != nil {
-										consumer.Consume(listener.Event{Error: err})
-									}
 									items = append(items, listener.SendEvent{
 										To:     item.To,
 										Coin:   item.Coin.Symbol,
@@ -419,11 +416,11 @@ func (ma *MinterAdapter) Subscribe(c context.Context, consumer listener.EventCon
 									Items:   items,
 								})
 							} else if tx.Type == uint64(transaction.TypeSend) {
-								send := data.(*models.SendData)
-								amount, _ := pipToBIP(send.Value).Float64()
-								if err != nil {
+								send := new(models.SendData)
+								if err := tx.Data.UnmarshalTo(send); err != nil {
 									consumer.Consume(listener.Event{Error: err})
 								}
+								amount, _ := pipToBIP(send.Value).Float64()
 								consumer.Consume(listener.Event{Type: listener.TypeSend,
 									Hash:    tx.Hash,
 									From:    tx.From,
@@ -435,11 +432,11 @@ func (ma *MinterAdapter) Subscribe(c context.Context, consumer listener.EventCon
 										Amount: amount,
 									}})
 							} else if tx.Type == uint64(transaction.TypeBuyCoin) {
-								buy := data.(*models.BuyCoinData)
-								amount, _ := pipToBIP(buy.ValueToBuy).Float64()
-								if err != nil {
+								buy := new(models.BuyCoinData)
+								if err := tx.Data.UnmarshalTo(buy); err != nil {
 									consumer.Consume(listener.Event{Error: err})
 								}
+								amount, _ := pipToBIP(buy.ValueToBuy).Float64()
 								consumer.Consume(listener.Event{Type: listener.TypeBuy,
 									Hash:    tx.Hash,
 									From:    tx.From,
@@ -492,14 +489,11 @@ func pipToBIP(pip string) *big.Float {
 }
 
 func bipToCoin(bip float64) *big.Int {
-	value := big.NewFloat(0).Copy(big.NewFloat(bip))
-	multiplier := big.NewFloat(math.Pow10(BIPDecimal))
-	value.Mul(value, multiplier)
-	// value = amount * 10^18
-	// amount = 0.0000000123
-	// value = 1230000000000
-	val, _ := value.Int(big.NewInt(0))
-	return val
+	value := big.NewFloat(bip)
+	value.Mul(value, big.NewFloat(math.Pow10(ValuableDecimals)))
+	result, _ := value.Int(nil)
+	result.Mul(result, big.NewInt(int64(math.Pow10(BIPDecimal-ValuableDecimals))))
+	return result
 }
 
 func isTransactionInMempool(err error) bool {
