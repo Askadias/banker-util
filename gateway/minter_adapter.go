@@ -11,7 +11,6 @@ import (
 	"github.com/MinterTeam/minter-go-sdk/v2/wallet"
 	"math"
 	"math/big"
-	"strconv"
 	"time"
 )
 
@@ -70,11 +69,11 @@ func (ma *MinterAdapter) NewWallet(_ context.Context) (Wallet, error) {
 
 func (ma *MinterAdapter) GetBalance(c context.Context, address string) (map[string]float64, error) {
 	balance := map[string]float64{}
-	addr, err := ma.client.Address(api_service.NewAddressParamsWithContext(c).WithAddress(address))
+	addr, err := ma.client.Address(api_service.NewAddressParamsWithContext(c).WithAddress(address).Address)
 	if err != nil {
 		return balance, fmt.Errorf("unable to get balance: %v", err)
 	}
-	for _, b := range addr.Payload.Balance {
+	for _, b := range addr.Balance {
 		balanceVal, _, err := big.ParseFloat(b.Value, 10, 0, big.ToNegativeInf)
 		if err != nil {
 			return balance, fmt.Errorf("unable to parse %s balance: %v", b.Coin.Symbol, err)
@@ -103,11 +102,11 @@ func (ma *MinterAdapter) EstimateBuy(c context.Context, coin string, amount floa
 }
 
 func (ma *MinterAdapter) Nonce(c context.Context, mntWallet *wallet.Wallet) (uint64, error) {
-	addr, err := ma.client.Address(api_service.NewAddressParamsWithContext(c).WithAddress(mntWallet.Address))
+	addr, err := ma.client.Address(api_service.NewAddressParamsWithContext(c).WithAddress(mntWallet.Address).Address)
 	if err != nil {
 		return 0, fmt.Errorf("unable to get balance: %v", err)
 	}
-	return addr.Payload.TransactionCount + 1, nil
+	return addr.TransactionCount + 1, nil
 }
 
 func (ma *MinterAdapter) CoinID(coin string) uint64 {
@@ -140,10 +139,15 @@ func (ma *MinterAdapter) Buy(c context.Context, w Wallet, coin string, amount fl
 	if err != nil {
 		return "", err
 	}
+	gas, err := ma.client.MinGasPrice()
+	if err != nil {
+		return "", err
+	}
+	minGas := uint8(gas.MinGasPrice)
 	signedTransaction, err := newTransaction.
 		SetNonce(nonce).
 		SetGasCoin(ma.CoinID("BIP")).
-		SetGasPrice(1).
+		SetGasPrice(minGas).
 		SetSignatureType(transaction.SignatureTypeSingle).
 		Sign(mntWallet.PrivateKey)
 	if err != nil {
@@ -154,12 +158,12 @@ func (ma *MinterAdapter) Buy(c context.Context, w Wallet, coin string, amount fl
 	if err != nil {
 		return "", fmt.Errorf("unable to encode transaction: %v", err)
 	}
-	res, err := ma.client.SendTransaction(api_service.NewSendTransactionParams().WithTx(encode))
+	res, err := ma.client.SendTransaction(encode)
 	if err != nil {
 		return "", fmt.Errorf("unable to buy coin %s: %v", coin, err)
 	}
 
-	return res.Payload.Hash, nil
+	return res.Hash, nil
 }
 
 func (ma *MinterAdapter) SellAll(c context.Context, w Wallet, coin string) (string, error) {
@@ -180,10 +184,15 @@ func (ma *MinterAdapter) SellAll(c context.Context, w Wallet, coin string) (stri
 	if err != nil {
 		return "", err
 	}
+	gas, err := ma.client.MinGasPrice()
+	if err != nil {
+		return "", err
+	}
+	minGas := uint8(gas.MinGasPrice)
 	signedTransaction, err := newTransaction.
 		SetNonce(nonce).
 		SetGasCoin(ma.CoinID(coin)).
-		SetGasPrice(1).
+		SetGasPrice(minGas).
 		SetSignatureType(transaction.SignatureTypeSingle).
 		Sign(mntWallet.PrivateKey)
 	if err != nil {
@@ -194,11 +203,56 @@ func (ma *MinterAdapter) SellAll(c context.Context, w Wallet, coin string) (stri
 	if err != nil {
 		return "", fmt.Errorf("unable to encode transaction: %v", err)
 	}
-	res, err := ma.client.SendTransaction(api_service.NewSendTransactionParams().WithTx(encode))
+	res, err := ma.client.SendTransaction(encode)
 	if err != nil {
 		return "", fmt.Errorf("unable to sell coin %s: %v", coin, err)
 	}
-	return res.Payload.Hash, nil
+	return res.Hash, nil
+}
+
+func (ma *MinterAdapter) SellAllSwapPool(c context.Context, w Wallet, coin string) (string, error) {
+	data := transaction.NewSellAllSwapPoolData().
+		AddCoin(ma.CoinID(coin)).
+		AddCoin(ma.CoinID("BIP")).
+		SetMinimumValueToBuy(new(big.Int))
+
+	newTransaction, err := transaction.NewBuilder(transaction.MainNetChainID).NewTransaction(data)
+	if err != nil {
+		return "", fmt.Errorf("unable to prepare transaction: %v", err)
+	}
+	mntWallet, err := ma.getWallet(w.PrivateKey)
+	if err != nil {
+		return "", err
+	}
+
+	nonce, err := ma.Nonce(c, mntWallet)
+	if err != nil {
+		return "", err
+	}
+	gas, err := ma.client.MinGasPrice()
+	if err != nil {
+		return "", err
+	}
+	minGas := uint8(gas.MinGasPrice)
+	signedTransaction, err := newTransaction.
+		SetNonce(nonce).
+		SetGasCoin(ma.CoinID("BIP")).
+		SetGasPrice(minGas).
+		SetSignatureType(transaction.SignatureTypeSingle).
+		Sign(mntWallet.PrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("unable to create transaction to sell coin %s: %v", coin, err)
+	}
+
+	encode, err := signedTransaction.Encode()
+	if err != nil {
+		return "", fmt.Errorf("unable to encode transaction: %v", err)
+	}
+	res, err := ma.client.SendTransaction(encode)
+	if err != nil {
+		return "", fmt.Errorf("unable to sell coin %s: %v", coin, err)
+	}
+	return res.Hash, nil
 }
 
 func (ma *MinterAdapter) EstimateSendFee(c context.Context, w Wallet, coin string, amount float64, address string) (float64, float64, error) {
@@ -210,11 +264,11 @@ func (ma *MinterAdapter) EstimateSendFee(c context.Context, w Wallet, coin strin
 	if err != nil {
 		return 0, 0, fmt.Errorf("unable to encode transaction: %v", err)
 	}
-	res, err := ma.client.EstimateTxCommission(api_service.NewEstimateTxCommissionParamsWithContext(c).WithTx(encode))
+	res, err := ma.client.EstimateTxCommission(encode)
 	if err != nil {
 		return 0, 0, fmt.Errorf("unable to estimate send transatcion of %s to %s: %v", coin, address, err)
 	}
-	fee, _ := pipToBIP(res.Payload.Commission).Float64()
+	fee, _ := pipToBIP(res.Commission).Float64()
 	return fee, 0, nil
 }
 
@@ -237,7 +291,7 @@ func (ma *MinterAdapter) Send(c context.Context, w Wallet, coin string, amount f
 		if err != nil {
 			return "", fmt.Errorf("unable to encode transaction: %v", err)
 		}
-		res, err := ma.client.SendTransaction(api_service.NewSendTransactionParams().WithTx(encode))
+		res, err := ma.client.SendTransaction(encode)
 		if err != nil {
 			if isTransactionInMempool(err) {
 				time.Sleep(1 * time.Second)
@@ -245,7 +299,7 @@ func (ma *MinterAdapter) Send(c context.Context, w Wallet, coin string, amount f
 			}
 			return "", fmt.Errorf("unable to send coin %s to %s: %v", coin, address, err)
 		}
-		return res.Payload.Hash, nil
+		return res.Hash, nil
 	}
 }
 
@@ -268,11 +322,16 @@ func (ma *MinterAdapter) prepareSendTx(c context.Context, w Wallet, coin string,
 	if err != nil {
 		return nil, 0, fmt.Errorf("unable to generate nonce: %v", err)
 	}
+	gas, err := ma.client.MinGasPrice()
+	if err != nil {
+		return nil, 0, err
+	}
+	minGas := uint8(gas.MinGasPrice)
 
 	signedTransaction, err := newTransaction.
 		SetNonce(nonce).
 		SetGasCoin(ma.CoinID("BIP")).
-		SetGasPrice(1).
+		SetGasPrice(minGas).
 		SetSignatureType(transaction.SignatureTypeSingle).
 		Sign(mntWallet.PrivateKey)
 	return signedTransaction, nonce, nil
@@ -287,11 +346,11 @@ func (ma *MinterAdapter) EstimateMultiSendFee(c context.Context, w Wallet, coin 
 	if err != nil {
 		return 0, 0, fmt.Errorf("unable to encode transaction: %v", err)
 	}
-	res, err := ma.client.EstimateTxCommission(api_service.NewEstimateTxCommissionParamsWithContext(c).WithTx(encode))
+	res, err := ma.client.EstimateTxCommission(encode)
 	if err != nil {
 		return 0, 0, fmt.Errorf("unable to estimate multisend transaction of %s to %v: %v", coin, amounts, err)
 	}
-	fee, _ := pipToBIP(res.Payload.Commission).Float64()
+	fee, _ := pipToBIP(res.Commission).Float64()
 	return fee, 0, nil
 }
 
@@ -316,7 +375,7 @@ func (ma *MinterAdapter) MultiSend(c context.Context, w Wallet, coin string, add
 		if err != nil {
 			return "", fmt.Errorf("unable to encode transaction: %v", err)
 		}
-		res, err := ma.client.SendTransaction(api_service.NewSendTransactionParamsWithContext(c).WithTx(encode))
+		res, err := ma.client.SendTransaction(encode)
 		if err != nil {
 			if isTransactionInMempool(err) {
 				time.Sleep(1 * time.Second)
@@ -324,7 +383,7 @@ func (ma *MinterAdapter) MultiSend(c context.Context, w Wallet, coin string, add
 			}
 			return "", fmt.Errorf("unable to multisendsend coin %s to %v: %v", coin, addresses, err)
 		}
-		return res.Payload.Hash, nil
+		return res.Hash, nil
 	}
 }
 
@@ -355,40 +414,45 @@ func (ma *MinterAdapter) prepareMultiSendTx(c context.Context, w Wallet, coin st
 	if err != nil {
 		return nil, 0, fmt.Errorf("unable to generate nonce: %v", err)
 	}
+	gas, err := ma.client.MinGasPrice()
+	if err != nil {
+		return nil, 0, err
+	}
+	minGas := uint8(gas.MinGasPrice)
 
 	signedTransaction, err := newTransaction.
 		SetNonce(nonce).
 		SetGasCoin(ma.CoinID("BIP")).
-		SetGasPrice(1).
+		SetGasPrice(minGas).
 		SetSignatureType(transaction.SignatureTypeSingle).
 		Sign(mntWallet.PrivateKey)
 	return signedTransaction, nonce, nil
 }
 
 func (ma *MinterAdapter) IsTransactionComplete(c context.Context, hash string) bool {
-	tx, err := ma.client.Transaction(api_service.NewTransactionParamsWithContext(c).WithHash(hash))
-	return err == nil && tx != nil && tx.Payload.Nonce > 0
+	tx, err := ma.client.Transaction(api_service.NewTransactionParamsWithContext(c).WithHash(hash).Hash)
+	return err == nil && tx != nil && tx.Nonce > 0
 }
 
-func (ma *MinterAdapter) Subscribe(c context.Context, consumer listener.EventConsumer) error {
+func (ma *MinterAdapter) Subscribe(_ context.Context, consumer listener.EventConsumer) error {
 	ma.Unsubscribe()
 	go func() {
 		ma.ticker = time.NewTicker(ma.pollingDuration)
 		for range ma.ticker.C {
-			st, _ := ma.pollingClient.Status(api_service.NewStatusParamsWithContext(c))
+			st, _ := ma.pollingClient.Status()
 			if st == nil {
 				continue
 			}
-			newLastBlockHeight := st.Payload.LatestBlockHeight
+			newLastBlockHeight := st.LatestBlockHeight
 			startBlock := ma.lastBlockHeight + 1
 			if ma.lastBlockHeight == 0 {
 				startBlock = newLastBlockHeight
 			}
 			if newLastBlockHeight > ma.lastBlockHeight {
 				for blockHeight := startBlock; blockHeight <= newLastBlockHeight; blockHeight++ {
-					block, _ := ma.pollingClient.Block(api_service.NewBlockParamsWithContext(c).WithHeight(strconv.FormatUint(blockHeight, 10)))
-					if block != nil && block.Payload.Transactions != nil {
-						for _, tx := range block.Payload.Transactions {
+					block, _ := ma.pollingClient.Block(blockHeight)
+					if block != nil && block.Transactions != nil {
+						for _, tx := range block.Transactions {
 							bigFee := new(big.Int)
 							bigFee.SetUint64(tx.Gas)
 							fee, _ := pipToBIP(big.NewInt(0).Mul(bigFee, big.NewInt(1000000000000000)).String()).Float64()
@@ -451,9 +515,9 @@ func (ma *MinterAdapter) Subscribe(c context.Context, consumer listener.EventCon
 								continue
 							}
 						}
-						ma.lastBlockHeight = block.Payload.Height
+						ma.lastBlockHeight = block.Height
 						for _, lnr := range ma.blockListeners {
-							lnr(ma.lastBlockHeight, len(block.Payload.Transactions))
+							lnr(ma.lastBlockHeight, len(block.Transactions))
 						}
 					}
 				}

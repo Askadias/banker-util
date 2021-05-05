@@ -31,7 +31,7 @@ func main() {
 			fmt.Println("Transaction complete:", hub.IsTransactionComplete(ctx, "BIP", event.Hash))
 		}
 	}))
-	select {}
+	//select {}
 
 	//hash := hub.MustSend(ctx, "BIP", sourceWallet, "BIP", 1, targetWallet.Address)
 	//fmt.Printf("Transaction MultiSend BIP: https://minterscan.net/tx/%s\n", hash)
@@ -47,10 +47,20 @@ func main() {
 	fmt.Printf("Balance: %s = %v\n", sourceWallet.Address, sourceBalance)
 	fmt.Printf("Balance: %s = %v\n", targetWallet.Address, targetBalance)
 
+	//sellAll, err := minter.SellAllSwapPool(ctx, sourceWallet, "HUB")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Printf("Transaction SellAll HUB: https://minterscan.net/tx/%s\n", sellAll)
+	//sourceBalance = hub.MustGetBalance(ctx, "BIP", sourceWallet.Address)
+	//targetBalance = hub.MustGetBalance(ctx, "BIP", targetWallet.Address)
+	//fmt.Printf("Balance: %s = %v\n", sourceWallet.Address, sourceBalance)
+	//fmt.Printf("Balance: %s = %v\n", targetWallet.Address, targetBalance)
+
 	// ==============================================================================================
 	// MULTI_SEND
 	multiBIPWallets := []string{targetWallet.Address, targetWallet.Address}
-	multiBIPAmounts := []float64{0.1, 0.1}
+	multiBIPAmounts := []float64{2, 2}
 	multiONLY1Wallets := []string{targetWallet.Address, targetWallet.Address}
 	multiONLY1Amounts := []float64{10, 10}
 	estimatedBIP, _ := hub.MustEstimateMultiSendFee(ctx, "BIP", sourceWallet, "BIP", multiBIPWallets, multiBIPAmounts)
@@ -82,6 +92,6 @@ func main() {
 	fmt.Printf("Estimation: %s -> %s %0.9f %0.9f BIP\n", targetWallet.Address, sourceWallet.Address, estimatedBIP, targetBalance["BIP"]-estimatedONLY1)
 	sendHashBIP := hub.MustSend(ctx, "BIP", targetWallet, "BIP", targetBalance["BIP"]-estimatedBIP-estimatedONLY1, sourceWallet.Address)
 	fmt.Printf("Transaction Send BIP: https://minterscan.net/tx/%s\n", sendHashBIP)
-	time.Sleep(3 * time.Minute)
+	time.Sleep(3 * time.Second)
 	minter.Unsubscribe()
 }
