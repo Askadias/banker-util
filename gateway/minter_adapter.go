@@ -559,6 +559,22 @@ func (ma *MinterAdapter) Subscribe(_ context.Context, consumer listener.EventCon
 										Coin:   buy.CoinToSell.Symbol,
 										Amount: amount,
 									}})
+							} else if tx.Type == uint64(transaction.TypeBuySwapPool) {
+								buy := new(models.BuySwapPoolData)
+								if err := tx.Data.UnmarshalTo(buy); err != nil {
+									consumer.Consume(listener.Event{Error: err})
+								}
+								amount, _ := pipToBIP(buy.ValueToBuy).Float64()
+								consumer.Consume(listener.Event{Type: listener.TypeBuy,
+									Hash:    tx.Hash,
+									From:    tx.From,
+									FeeCoin: tx.GasCoin.Symbol,
+									Fee:     fee,
+									SendEvent: listener.SendEvent{
+										Coin:   buy.Coins[0].Symbol,
+										ToCoin: buy.Coins[1].Symbol,
+										Amount: amount,
+									}})
 							} else {
 								continue
 							}
