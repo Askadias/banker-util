@@ -166,6 +166,54 @@ func (ma *MinterAdapter) Buy(c context.Context, w Wallet, coin string, amount fl
 	return res.Hash, nil
 }
 
+func (ma *MinterAdapter) BuySwapPool(c context.Context, w Wallet, coin string, amount float64) (string, error) {
+	cost, _, err := ma.EstimateBuy(c, coin, amount)
+	data := transaction.NewBuySwapPoolData().
+		AddCoin(ma.CoinID("BIP")).
+		AddCoin(ma.CoinID(coin)).
+		SetMaximumValueToSell(bipToCoin(cost*2)).
+		SetValueToBuy(bipToCoin(amount))
+
+	newTransaction, err := transaction.NewBuilder(transaction.MainNetChainID).NewTransaction(data)
+	if err != nil {
+		return "", fmt.Errorf("unable to prepare transaction: %v", err)
+	}
+	mntWallet, err := ma.getWallet(w.PrivateKey)
+	if err != nil {
+		return "", err
+	}
+
+	nonce, err := ma.Nonce(c, mntWallet)
+	if err != nil {
+		return "", err
+	}
+	gas, err := ma.client.MinGasPrice()
+	if err != nil {
+		return "", err
+	}
+	minGas := uint8(gas.MinGasPrice)
+	signedTransaction, err := newTransaction.
+		SetNonce(nonce).
+		SetGasCoin(ma.CoinID("BIP")).
+		SetGasPrice(minGas).
+		SetSignatureType(transaction.SignatureTypeSingle).
+		Sign(mntWallet.PrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("unable to create transaction to buy coin coin %s: %v", coin, err)
+	}
+
+	encode, err := signedTransaction.Encode()
+	if err != nil {
+		return "", fmt.Errorf("unable to encode transaction: %v", err)
+	}
+	res, err := ma.client.SendTransaction(encode)
+	if err != nil {
+		return "", fmt.Errorf("unable to buy coin %s: %v", coin, err)
+	}
+
+	return res.Hash, nil
+}
+
 func (ma *MinterAdapter) SellAll(c context.Context, w Wallet, coin string) (string, error) {
 	data := transaction.NewSellAllCoinData().
 		SetCoinToSell(ma.CoinID(coin)).

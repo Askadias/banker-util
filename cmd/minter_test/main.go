@@ -47,6 +47,19 @@ func main() {
 	fmt.Printf("Balance: %s = %v\n", sourceWallet.Address, sourceBalance)
 	fmt.Printf("Balance: %s = %v\n", targetWallet.Address, targetBalance)
 
+	//cost, fee, err := minter.EstimateBuy(ctx, "MUSD", 1)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Printf("Estimate buy 1 MUSD: %v fee: %v", cost, fee)
+	//buy, err := minter.BuySwapPool(ctx, sourceWallet, "MUSD", 1)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Printf("Transaction BuySwapPool MUSD: https://minterscan.net/tx/%s\n", buy)
+	//sourceBalance = hub.MustGetBalance(ctx, "BIP", sourceWallet.Address)
+	//fmt.Printf("Balance: %s = %v\n", sourceWallet.Address, sourceBalance)
+
 	//sellAll, err := minter.SellAllSwapPool(ctx, sourceWallet, "HUB")
 	//if err != nil {
 	//	panic(err)
