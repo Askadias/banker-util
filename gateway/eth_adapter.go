@@ -276,6 +276,48 @@ func (ea *EthereumAdapter) Send(ctx context.Context, w Wallet, coin string, amou
 	}
 }
 
+func (ea *EthereumAdapter) Cancel(ctx context.Context, w Wallet, txHash string) (string, error) {
+	key, err := ea.getWalletKey(w.PrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("unable to parse wallet private key: %v", err)
+	}
+
+	gasPrice := eth.GetGasPrice(ctx)
+	price := etherToWei(gasPrice, eth.Decimal)
+	if gasPrice == 0 {
+		price = ea.getGasPrice(ctx)
+	}
+	publicKeyECDSA, ok := key.Public().(*ecdsa.PublicKey)
+	if !ok {
+		return "", fmt.Errorf("unable to get public key for wallet: %s", w.Address)
+	}
+
+	prevTx, isPending, err := ea.client.TransactionByHash(ctx, common.HexToHash(txHash))
+	if err != nil || prevTx == nil || !isPending {
+		return "", fmt.Errorf("unable to get transaction: %s", txHash)
+	}
+
+	gasLimit := uint64(21000) // in units
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	tx := types.NewTransaction(prevTx.Nonce(), fromAddress, etherToWei(0, eth.Decimal), gasLimit, price, nil)
+	chainID, err := ea.client.NetworkID(ctx)
+	if err != nil {
+		return "", fmt.Errorf("unable to get ETH networkID: %v", err)
+	}
+
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), key)
+	if err != nil {
+		return "", fmt.Errorf("unable to sign transaction: %v", err)
+	}
+
+	err = ea.client.SendTransaction(ctx, signedTx)
+	if err != nil {
+		return "", fmt.Errorf("unable to send transaction: %v", err)
+	}
+
+	return signedTx.Hash().Hex(), nil
+}
+
 func (ea *EthereumAdapter) EstimateMultiSendFee(ctx context.Context, w Wallet, coin string, addresses []string, amounts []float64) (float64, float64, error) {
 	key, err := ea.getWalletKey(w.PrivateKey)
 	if err != nil {

@@ -16,7 +16,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ethereum := gateway.NewEthereumAdapter(ethereumClient, 0, 15)
+	ethereum := gateway.NewEthereumAdapter(ethereumClient, 0, 10)
 	hub := gateway.NewCryptoHub(map[string]gateway.Adapter{
 		"ETH": ethereum,
 	})
@@ -35,7 +35,6 @@ func main() {
 		}
 	}))
 	//select {}
-
 	//hash := hub.MustSend(ctx, "ETH", sourceWallet, "USDT", 0.1, targetWallet.Address)
 	//fmt.Printf("Transaction Send USDT: https://etherscan.io/tx/%s\n", hash)
 	//fmt.Println("Transaction complete:", hub.IsTransactionComplete(ctx, "ETH", hash))
@@ -65,6 +64,17 @@ func main() {
 	targetBalance := hub.MustGetBalance(ctx, "ETH", targetWallet.Address)
 	fmt.Printf("Balance: %s = %v\n", sourceWallet.Address, sourceBalance)
 	fmt.Printf("Balance: %s = %v\n", targetWallet.Address, targetBalance)
+
+	//ctx = eth.WithGasPrice(ctx, 0.000000000176)
+	//hash := hub.MustSend(ctx, "ETH", sourceWallet, "ETH", 0.0001, targetWallet.Address)
+	//fmt.Printf("Pending Transaction Send ETH: https://etherscan.io/tx/%s\n", hash)
+	//ctx = eth.WithGasPrice(ctx, 0.0000000002)
+	//hash, err = ethereum.Cancel(ctx, sourceWallet, hash)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Printf("Cancelled Transaction Send ETH: https://etherscan.io/tx/%s\n", hash)
+	//fmt.Println("Transaction complete:", hub.IsTransactionComplete(ctx, "ETH", hash))
 
 	// ==============================================================================================
 	// MULTI_SEND

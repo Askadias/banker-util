@@ -1,6 +1,7 @@
 module github.com/Askadias/banker-util
 
 require (
+	bitbucket.org/decimalteam/decimal-go-sdk v0.0.0-20210609054551-ab1c596872b7 // indirect
 	github.com/MinterTeam/minter-go-sdk/v2 v2.2.0
 	github.com/aristanetworks/goarista v0.0.0-20200331225509-2cc472e8fbd6 // indirect
 	github.com/ethereum/go-ethereum v1.9.25
